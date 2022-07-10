@@ -1,0 +1,7 @@
+/target
+
+data/**
+output/**
+
+!output/.placeholder
+!data/.placeholder
