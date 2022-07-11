@@ -1,4 +1,10 @@
-use std::fs::read_dir;
+use clap::Parser;
+use local_ip_address::local_ip;
+use std::{
+    fs::read_dir,
+    net::{IpAddr, SocketAddr},
+    str::FromStr,
+};
 use tokio::{
     self,
     fs::File,
@@ -8,18 +14,37 @@ use tokio::{
 
 // TODO: Remove panics/unwraps & add proper error handling
 
-const BUFFERSIZE: usize = 8192;
+#[derive(Parser, Debug)]
+#[clap(author, about, version)]
+struct Args {
+    #[clap(default_value_t = 8080u16, short = 'p', long, value_parser = validate_port)]
+    port: u16,
+    #[clap(default_value = "./data/", short = 'f', long, value_parser)]
+    fileroot: String,
+    #[clap(default_value_t = 8192usize, short = 'b', long, value_parser = validate_buffersize)]
+    buffersize: usize,
+    #[clap(default_value_t = false, short = 'l', long, action)]
+    local: bool,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // TODO: Clap
-    let addr = "127.0.0.1:8080";
+    let args = Args::parse();
+    let addr = match args.local {
+        true => SocketAddr::new(IpAddr::from_str("127.0.0.1")?, args.port),
+        false => SocketAddr::new(local_ip()?, args.port),
+    };
+
     let listener = TcpListener::bind(addr).await?;
     println!("[+] Listening on {}", addr);
 
     loop {
+        let args = Args::parse();
+        let buffersize = args.buffersize;
+        let fileroot = args.fileroot;
+
         let (mut socket, addr) = listener.accept().await?;
-        println!("[+] New client: {}", addr);
+        println!("\n[+] New client: {}", addr);
 
         tokio::spawn(async move {
             let (reader, writer) = socket.split();
@@ -27,6 +52,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut writer = BufWriter::new(writer);
 
             let mut vec_buf = Vec::new();
+
+            // Send buffersize
+            writer
+                .write_all(buffersize.to_string().as_bytes())
+                .await
+                .unwrap();
+            writer.flush().await.unwrap();
+
+            // Read ACK
+            let _bytes_read = reader.read_buf(&mut vec_buf).await.unwrap();
+            if String::from_utf8(vec_buf.clone()).unwrap() != "ACK" {
+                panic!("ACK not received (buffersize)");
+            } else {
+                vec_buf.clear();
+            }
 
             let (metadata_list, file_amount) = get_metadata().await;
 
@@ -70,12 +110,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         break;
                     }
 
-                    let input_path = String::from("./data/") + msg.as_str();
+                    let input_path = fileroot.clone() + msg.as_str();
 
-                    println!("[+] File requested: {}", input_path);
+                    println!("\n[+] File requested: {}", input_path);
                     let mut file = File::open(input_path.clone()).await.unwrap();
                     let mut remaining_data = file.metadata().await.unwrap().len();
-                    let mut filebuf = [0u8; BUFFERSIZE];
+                    let mut filebuf = vec![0u8; buffersize];
 
                     while remaining_data != 0 {
                         let read_result = file.read(&mut filebuf);
@@ -95,7 +135,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if String::from_utf8(vec_buf.clone()).unwrap() != "ACK" {
                     panic!("ACK not received (amount)");
                 } else {
-                    println!("[+] File transfer successfully done\n");
+                    println!("[+] File transfer successfully done");
                     vec_buf.clear();
                 }
             }
@@ -114,10 +154,26 @@ async fn get_metadata() -> (Vec<(String, u64)>, usize) {
         let file = File::open(filepath).await.unwrap();
         let filesize = file.metadata().await.unwrap().len();
 
-        metadata.push((filename, filesize));
+        if filesize > 0 {
+            metadata.push((filename, filesize));
+        }
     }
 
     let amount = metadata.len();
 
     (metadata, amount)
+}
+
+fn validate_buffersize(value: &str) -> Result<usize, String> {
+    match value.parse::<usize>() {
+        Ok(n) => Ok(n),
+        Err(_) => Err(format!("Invalid buffersize: {}", value)),
+    }
+}
+
+fn validate_port(value: &str) -> Result<u16, String> {
+    match value.parse::<u16>() {
+        Ok(n) => Ok(n),
+        Err(_) => Err(format!("Invalid port-number: {}", value)),
+    }
 }

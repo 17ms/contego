@@ -1,3 +1,4 @@
+use clap::Parser;
 use std::time::Duration;
 use tokio::{
     fs::File,
@@ -8,13 +9,22 @@ use tokio::{
 
 // TODO: Remove panics/unwraps & add proper error handling
 
-const BUFFERSIZE: usize = 8192;
+#[derive(Debug, Parser)]
+#[clap(author, about, version)]
+struct Args {
+    #[clap(short = 't', long, value_parser)]
+    target: String,
+    #[clap(default_value = "./output/", short = 'f', long, value_parser)]
+    fileroot: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // TODO: Clap
-    let addr = "127.0.0.1:8080";
-    let mut stream = TcpStream::connect(addr).await?;
+    let args = Args::parse();
+    let addr = args.target;
+    let fileroot = args.fileroot;
+
+    let mut stream = TcpStream::connect(addr.clone()).await?;
     println!("[+] Connecting to {}", addr);
 
     let (reader, writer) = stream.split();
@@ -26,11 +36,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     loop {
         let bytes_read = reader.read_buf(&mut buf).await.unwrap();
         if bytes_read == 0 {
-            println!("[-] No more bytes received, disconnecting from the server...");
+            println!("[-] No more bytes received, closing connection");
             break;
         }
 
+        // Receive buffersize
+        let buffersize = String::from_utf8(buf.clone())
+            .unwrap()
+            .parse::<usize>()
+            .unwrap();
+        println!("[+] Selected buffersize: {}", buffersize);
+        buf.clear();
+
+        // ACK buffersize
+        writer.write_all(b"ACK").await.unwrap();
+        writer.flush().await.unwrap();
+
         // Receive file amount
+        let _bytes_read = reader.read_buf(&mut buf).await.unwrap();
         let file_amount = String::from_utf8(buf.clone())
             .unwrap()
             .parse::<usize>()
@@ -66,8 +89,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             writer.write_all(file.0.as_bytes()).await.unwrap();
             writer.flush().await.unwrap();
 
-            // Create file locally (./output/)
-            let output_path = String::from("./output/") + file.0.as_str();
+            // Create file locally
+            let output_path = fileroot.clone() + file.0.as_str();
 
             let output_file = File::create(output_path.clone()).await.unwrap();
             println!("[+] New file: {}", output_path);
@@ -75,10 +98,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Receive the file itself
             let mut remaining_data = file.1;
-            let mut buf = [0u8; BUFFERSIZE];
+            let mut buf = vec![0u8; buffersize];
 
             while remaining_data != 0 {
-                if remaining_data >= BUFFERSIZE as u64 {
+                if remaining_data >= buffersize as u64 {
                     let read_result = reader.read(&mut buf);
 
                     match read_result.await {
@@ -118,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
 
-        println!("[+] All finished, disconnecting...");
+        println!("[+] All files finished, requesting connection termination");
         writer.write_all(b"FIN").await.unwrap();
         writer.flush().await.unwrap();
     }
