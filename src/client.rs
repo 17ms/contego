@@ -29,18 +29,27 @@ pub async fn connect(addr: String, fileroot: PathBuf) -> Result<(), Box<dyn std:
         buf.clear();
 
         // ACK buffersize
-        writer.write_all(b"ACK").await.unwrap();
+        writer.write_all(b"ACK\n").await.unwrap();
         writer.flush().await?;
 
-        // Receive file amount
-        let _bytes_read = reader.read_buf(&mut buf).await?;
-        let file_amount = String::from_utf8(buf.clone())?.parse::<usize>()?;
-        println!("[+] Total of {} files available", file_amount);
-        buf.clear();
+        // Receive file amount (or termination request if the server does not have any files available)
+        let file_amount: usize;
+        let _bytes_read = reader.read_until(b'\n', &mut buf).await?;
+        let msg = String::from_utf8(buf.clone())?;
+        if msg.trim() == "FIN" {
+            println!("[-] Server does not have any files available, closing connection");
+            writer.write_all(b"FIN\n").await?;
+            writer.flush().await?;
+            break;
+        } else {
+            file_amount = msg.trim().parse::<usize>()?;
+            println!("[+] Total of {} files available", file_amount);
+            buf.clear();
 
-        // ACK file amount
-        writer.write_all(b"ACK").await?;
-        writer.flush().await?;
+            // ACK file amount
+            writer.write_all(b"ACK\n").await?;
+            writer.flush().await?;
+        }
 
         // Receive file metadata
         println!("[+] Receiving file metadata");
@@ -64,7 +73,8 @@ pub async fn connect(addr: String, fileroot: PathBuf) -> Result<(), Box<dyn std:
         println!("[+] Requesting files individually");
         for file in &metadata {
             println!("[INFO] Current request: [{:?}]", file);
-            writer.write_all(file.0.as_bytes()).await?;
+            let msg = file.0.to_string() + "\n";
+            writer.write_all(msg.as_bytes()).await?;
             writer.flush().await?;
 
             // Create file locally
@@ -112,7 +122,7 @@ pub async fn connect(addr: String, fileroot: PathBuf) -> Result<(), Box<dyn std:
             }
 
             // ACK file
-            writer.write_all(b"ACK").await?;
+            writer.write_all(b"ACK\n").await?;
             writer.flush().await?;
             println!(
                 "[+] Successfully wrote {} bytes to {:#?}\n",
@@ -121,7 +131,7 @@ pub async fn connect(addr: String, fileroot: PathBuf) -> Result<(), Box<dyn std:
         }
 
         println!("[+] All files finished, requesting connection termination");
-        writer.write_all(b"FIN").await?;
+        writer.write_all(b"FIN\n").await?;
         writer.flush().await?;
     }
 
