@@ -61,7 +61,9 @@ pub async fn listen(
             let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
             let msg = String::from_utf8(vec_buf.clone())?;
             if msg.trim() != "ACK" {
-                panic!("ACK not received (buffersize), instead got {}", msg);
+                let e: Box<dyn std::error::Error + Send + Sync> =
+                    format!("ACK not received (buffersize)").into();
+                return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
             } else {
                 vec_buf.clear();
             }
@@ -81,7 +83,9 @@ pub async fn listen(
                 let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
                 let msg = String::from_utf8(vec_buf.clone())?;
                 if msg.trim() != "FIN" {
-                    panic!("ACK not received (server-side-termination)");
+                    let e: Box<dyn std::error::Error + Send + Sync> =
+                        format!("ACK not received (server-side termination)").into();
+                    return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
                 } else {
                     // Empty error as error's reason is already logged with println
                     let e: Box<dyn std::error::Error + Send + Sync> = "".into();
@@ -99,7 +103,9 @@ pub async fn listen(
             let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
             let msg = String::from_utf8(vec_buf.clone())?;
             if msg.trim() != "ACK" {
-                panic!("ACK not received (amount), instead got {}", msg);
+                let e: Box<dyn std::error::Error + Send + Sync> =
+                    format!("ACK not received (file amount)").into();
+                return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
             } else {
                 vec_buf.clear();
             }
@@ -157,7 +163,9 @@ pub async fn listen(
                 let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
                 let msg = String::from_utf8(vec_buf.clone())?;
                 if msg.trim() != "ACK" {
-                    panic!("ACK not received (file), instead got {}", msg);
+                    let e: Box<dyn std::error::Error + Send + Sync> =
+                        format!("ACK not received (single file's data)").into();
+                    return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
                 } else {
                     println!("[+] File transfer successfully done");
                     vec_buf.clear();
