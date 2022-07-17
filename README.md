@@ -22,6 +22,8 @@ cargo build --release
 ./target/release/fragilebyte <OPTIONS>
 ```
 
+If no options are specified the app starts as a server by default. It can be started as a client by defining a target address as shown below.
+
 ```shell
 USAGE:
     fragilebyte [OPTIONS]
@@ -36,7 +38,7 @@ OPTIONS:
     -t, --target <TARGET>            Server's address when connecting as a client
         --timeout <TIMEOUT>          Seconds of inactivity after which the server closes itself
                                      [default: 30]
-    -V, --version                    Print version informatio
+    -V, --version                    Print version information
 ```
 
 ### Dependencies
