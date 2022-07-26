@@ -25,6 +25,9 @@ struct Args {
     /// Path to the folder where the files are outputted as a client or
     /// served from as a server [default: './output' / './data']
     fileroot: Option<PathBuf>,
+    #[clap(default_value_t = false, short = 'a', long, action)]
+    /// Automatically download every available file from the host (skips stdin)
+    all: bool,
 }
 
 #[tokio::main]
@@ -39,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None => PathBuf::from("./output"),
             };
 
-            client::connect(addr, fileroot)
+            client::connect(addr, fileroot, args.all)
                 .await
                 .expect("Error initializing client");
         }

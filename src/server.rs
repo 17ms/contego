@@ -1,5 +1,6 @@
 use local_ip_address::local_ip;
 use std::{
+    error::Error,
     fs::read_dir,
     net::{IpAddr, SocketAddr},
     path::PathBuf,
@@ -20,7 +21,7 @@ pub async fn listen(
     buffersize: usize,
     localhost: bool,
     timeout_duration: u64,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn Error>> {
     let addr = match localhost {
         true => SocketAddr::new(IpAddr::from_str("127.0.0.1")?, port),
         false => SocketAddr::new(local_ip()?, port),
@@ -57,13 +58,12 @@ pub async fn listen(
             writer.flush().await?;
 
             // Read ACK
-            //let _bytes_read = reader.read_buf(&mut vec_buf).await?;
             let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
             let msg = String::from_utf8(vec_buf.clone())?;
             if msg.trim() != "ACK" {
-                let e: Box<dyn std::error::Error + Send + Sync> =
+                let e: Box<dyn Error + Send + Sync> =
                     format!("ACK not received (buffersize)").into();
-                return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
+                return Err::<(), Box<dyn Error + Send + Sync>>(e);
             } else {
                 vec_buf.clear();
             }
@@ -79,17 +79,16 @@ pub async fn listen(
                 writer.flush().await?;
 
                 // Read FIN
-                //let _bytes_read = reader.read_buf(&mut vec_buf).await?;
                 let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
                 let msg = String::from_utf8(vec_buf.clone())?;
                 if msg.trim() != "FIN" {
-                    let e: Box<dyn std::error::Error + Send + Sync> =
+                    let e: Box<dyn Error + Send + Sync> =
                         format!("ACK not received (server-side termination)").into();
-                    return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
+                    return Err::<(), Box<dyn Error + Send + Sync>>(e);
                 } else {
                     // Empty error as error's reason is already logged with println
-                    let e: Box<dyn std::error::Error + Send + Sync> = "".into();
-                    return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
+                    let e: Box<dyn Error + Send + Sync> = "".into();
+                    return Err::<(), Box<dyn Error + Send + Sync>>(e);
                 }
             } else {
                 // Send file amount
@@ -99,13 +98,12 @@ pub async fn listen(
             }
 
             // Read ACK
-            //let _bytes_read = reader.read_buf(&mut vec_buf).await?;
             let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
             let msg = String::from_utf8(vec_buf.clone())?;
             if msg.trim() != "ACK" {
-                let e: Box<dyn std::error::Error + Send + Sync> =
+                let e: Box<dyn Error + Send + Sync> =
                     format!("ACK not received (file amount)").into();
-                return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
+                return Err::<(), Box<dyn Error + Send + Sync>>(e);
             } else {
                 vec_buf.clear();
             }
@@ -121,11 +119,10 @@ pub async fn listen(
             // Handle file request(s)
             println!("[+] Ready to serve files");
             loop {
-                //let bytes_read = reader.read_buf(&mut vec_buf).await?;
                 let bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
 
                 if bytes_read == 0 {
-                    println!("[-] File request never received");
+                    println!("[-] File request never received or client crashed");
                     vec_buf.clear();
                     break;
                 } else {
@@ -133,7 +130,7 @@ pub async fn listen(
                     vec_buf.clear();
 
                     if msg.trim() == "FIN" {
-                        println!("[+] FIN received, terminating individual connection...");
+                        println!("[+] FIN received, terminating connection with {}", addr);
                         break;
                     }
 
@@ -159,20 +156,19 @@ pub async fn listen(
                 }
 
                 // Read ACK
-                //let _bytes_read = reader.read_buf(&mut vec_buf).await?;
                 let _bytes_read = reader.read_until(b'\n', &mut vec_buf).await?;
                 let msg = String::from_utf8(vec_buf.clone())?;
                 if msg.trim() != "ACK" {
-                    let e: Box<dyn std::error::Error + Send + Sync> =
+                    let e: Box<dyn Error + Send + Sync> =
                         format!("ACK not received (single file's data)").into();
-                    return Err::<(), Box<dyn std::error::Error + Send + Sync>>(e);
+                    return Err::<(), Box<dyn Error + Send + Sync>>(e);
                 } else {
                     println!("[+] File transfer successfully done");
                     vec_buf.clear();
                 }
             }
 
-            Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
+            Ok::<(), Box<dyn Error + Send + Sync>>(())
         });
 
         match task.await? {
@@ -186,7 +182,7 @@ pub async fn listen(
 
 async fn get_metadata(
     fileroot: PathBuf,
-) -> Result<(Vec<(String, u64)>, usize), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(Vec<(String, u64)>, usize), Box<dyn Error + Send + Sync>> {
     let mut metadata = Vec::<(String, u64)>::new();
     let paths = read_dir(fileroot)?;
 

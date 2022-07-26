@@ -11,10 +11,9 @@ use std::{
 use tokio_test::block_on;
 
 #[test]
-#[timeout(10000)]
-/// Syncs three textfiles from ./data to ./output and checks
-/// that their contents match.
-fn sync_txt_files() {
+#[timeout(8000)]
+/// Syncs three textfiles from ./data to ./output and checks that their contents match
+fn inputless_filesync_test() {
     let data = vec![
         ("1.txt", create_data()),
         ("2.txt", create_data()),
@@ -28,6 +27,7 @@ fn sync_txt_files() {
     }
 
     let server_handle = thread::spawn(|| {
+        // Start the server in the local network, timeouts after 5 secs of inactivity
         block_on(server::listen(
             8080u16,
             PathBuf::from("./data"),
@@ -38,18 +38,21 @@ fn sync_txt_files() {
         .unwrap();
     });
 
-    // Sleep to give server time to start up
-    sleep(Duration::from_millis(500));
-
     let client_handle = thread::spawn(|| {
+        // Run the client inputless
         block_on(client::connect(
             String::from("127.0.0.1:8080"),
             PathBuf::from("./output"),
+            true,
         ))
         .unwrap();
     });
 
     client_handle.join().unwrap();
+
+    // Sleep to give server time to start up
+    sleep(Duration::from_millis(500));
+
     server_handle.join().unwrap();
 
     for file in data {
