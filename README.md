@@ -1,9 +1,10 @@
 ## TCP socket pair for easy and efficient file transfer
 
-Single binary (~5.6 MB) containing both server and client. Originally made as an backend for [other project](https://github.com/einisto/leightbox).
+Single binary containing both server and client. Originally made as an backend for [other project](https://github.com/einisto/leightbox).
 
 <p align="left">
 <a href="https://github.com/einisto/fragilebyte/actions/workflows/ci.yml"><img src="https://img.shields.io/github/workflow/status/einisto/fragilebyte/Cargo%20Build%20&%20Test"></a>
+<a href="https://github.com/einisto/fragilebyte/tags"><img src="https://img.shields.io/github/v/tag/einisto/fragilebyte"></a>
 <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/github/license/einisto/fragilebyte"></a>
 </p>
 
@@ -24,7 +25,7 @@ cargo build --release
 
 If no options are specified the app starts as a server by default. It can be started as a client by defining a target address as shown below.
 
-```shell
+```
 USAGE:
     fragilebyte [OPTIONS]
 
