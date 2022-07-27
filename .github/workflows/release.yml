@@ -3,7 +3,7 @@ name: Compile & Release
 on:
   release:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "*"
 
 env:
   CARGO_TERM_COLOR: always
@@ -20,8 +20,9 @@ jobs:
             archive: tar.gz tar.xz
           - target: x86_64-apple-darwin
             archive: zip
+
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@main
       - name: Compile and release
         uses: rust-build/rust-build.action@master
         env:
@@ -29,3 +30,4 @@ jobs:
         with:
           RUSTTARGET: ${{ matrix.target }}
           ARCHIVE_TYPES: ${{ matrix.archive }}
+          EXTRA_FILES: "README.md LICENSE"
