@@ -23,7 +23,7 @@ cargo build --release
 ./target/release/fragilebyte <OPTIONS>
 ```
 
-If no options are specified the app starts as a server by default. It can be started as a client by defining a target address as shown below.
+If no options are specified the app starts as a server by default. It can be started as a client by defining a target address with the commands shown below.
 
 ```
 USAGE:
