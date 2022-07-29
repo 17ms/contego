@@ -34,6 +34,7 @@ fn inputless_filesync_test() {
             8192usize,
             true,
             5,
+            true,
         ))
         .unwrap();
     });
@@ -43,6 +44,7 @@ fn inputless_filesync_test() {
         block_on(client::connect(
             String::from("127.0.0.1:8080"),
             PathBuf::from("./output"),
+            "test".to_string(),
             true,
         ))
         .unwrap();

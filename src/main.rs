@@ -1,6 +1,6 @@
 use clap::Parser;
 use fragilebyte::{client, server};
-use std::{path::PathBuf, str::FromStr};
+use std::{error::Error, path::PathBuf, process::exit, str::FromStr};
 use tokio;
 
 #[derive(Parser, Debug)]
@@ -9,6 +9,9 @@ struct Args {
     #[clap(short = 't', long, value_parser)]
     /// Server's address when connecting as a client
     target: Option<String>,
+    #[clap(short = 'k', long, value_parser)]
+    /// Alphanumeric 8 characters long key required to establish a connection to the host
+    key: Option<String>,
     #[clap(default_value_t = 8080u16, short = 'p', long, value_parser = validate_arg::<u16>)]
     /// Port where the service is hosted
     port: u16,
@@ -31,7 +34,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
     match args.target {
@@ -41,8 +44,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Some(n) => n,
                 None => PathBuf::from("./output"),
             };
+            let access_key = match args.key {
+                Some(n) => n,
+                None => {
+                    eprintln!("[-] Access key required as a client, please try again");
+                    exit(0x0100);
+                }
+            };
 
-            client::connect(addr, fileroot, args.all)
+            client::connect(addr, fileroot, access_key, args.all)
                 .await
                 .expect("Error initializing client");
         }
@@ -59,6 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 args.buffersize,
                 args.localhost,
                 args.timeout,
+                false,
             )
             .await
             .expect("Error initializing server");
