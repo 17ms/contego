@@ -1,6 +1,6 @@
 ## TCP socket pair for easy and efficient file transfer
 
-Single binary containing both server and client. Originally made as an backend for [other project](https://github.com/einisto/leightbox).
+Single binary containing both server and client. Originally made as a backend for [a TUI app](https://github.com/einisto/leightbox). Note that the server can't be hosted on a mobile hotspot network due to firewalling of most cellular networks. Despite this the client side can still obviously be used even on those scenarios.
 
 <p align="left">
 <a href="https://github.com/einisto/fragilebyte/actions/workflows/ci.yml"><img src="https://img.shields.io/github/workflow/status/einisto/fragilebyte/Cargo%20Build%20&%20Test"></a>
@@ -23,7 +23,7 @@ cargo build --release
 ./target/release/fragilebyte <OPTIONS>
 ```
 
-If no options are specified the app starts as a server by default. It can be started as a client by defining a target address with the commands shown below.
+If no options are specified the app starts as a server by default. It can be started as a client by defining a target address:
 
 ```
 USAGE:

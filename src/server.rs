@@ -30,7 +30,10 @@ pub async fn listen(
 ) -> Result<(), Box<dyn Error>> {
     let addr = match localhost {
         true => SocketAddr::new(IpAddr::from_str("127.0.0.1")?, port),
-        false => SocketAddr::new(local_ip()?, port),
+        false => {
+            println!("[+] Listening on {}:{}", local_ip()?, port);
+            SocketAddr::new(IpAddr::from_str("0.0.0.0")?, port)
+        }
     };
     // Use weak access key for integration testing, otherwise 8 char alphanumeric
     let access_key = match use_testing_key {
@@ -39,7 +42,6 @@ pub async fn listen(
     };
 
     let listener = TcpListener::bind(addr).await?;
-    println!("[+] Listening on {}", addr);
     println!("[+] Access key: {}", access_key);
 
     loop {
