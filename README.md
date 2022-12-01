@@ -1,6 +1,6 @@
 ## Socket pair for FTP like file transfer
 
-Single binary containing both server and client. The server can't be hosted on a mobile hotspot network due to the firewalling of most cellular networks. Despite this the client side can still obviously be used even on those scenarios.
+Single binary containing both server and client.
 
 <p align="left">
 <a href="https://github.com/einisto/fragilebyte/actions/workflows/ci.yml"><img src="https://img.shields.io/github/workflow/status/einisto/fragilebyte/Cargo%20Build%20&%20Test"></a>
