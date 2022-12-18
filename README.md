@@ -3,9 +3,9 @@
 Single binary containing both server and client.
 
 <p align="left">
-<a href="https://github.com/einisto/fragilebyte/actions/workflows/ci.yml"><img src="https://img.shields.io/github/workflow/status/einisto/fragilebyte/Cargo%20Build%20&%20Test"></a>
-<a href="https://github.com/einisto/fragilebyte/tags"><img src="https://img.shields.io/github/v/tag/einisto/fragilebyte"></a>
-<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/github/license/einisto/fragilebyte"></a>
+<a href="https://github.com/einisto/fragilebyte/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/17ms/fragilebyte/ci.yml?branch=main"></a>
+<a href="https://github.com/einisto/fragilebyte/tags"><img src="https://img.shields.io/github/v/tag/17ms/fragilebyte"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/github/license/17ms/fragilebyte"></a>
 </p>
 
 ### Installation and usage
@@ -44,4 +44,4 @@ OPTIONS:
 
 ### Dependencies
 
-![DependenciesGraph](https://github.com/einisto/fragilebyte/blob/main/doc/structure.svg)
+![DependenciesGraph](docs/structure.svg)
