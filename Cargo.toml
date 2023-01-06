@@ -8,7 +8,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.19.2", features = ["full"] }
+tokio = { version = "1.20.3", features = ["full"] }
 clap = { version = "3.2.8", features = ["derive"] }
 local-ip-address = "0.4.4"
 rand = "0.8.5"
