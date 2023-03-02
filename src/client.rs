@@ -63,7 +63,8 @@ pub async fn connect(
         println!("[+] Received metadata: {:#?}", metadata);
 
         // Send request for each file by filename
-        println!("[+] [<Filename> + Enter] to make a request\n");
+        println!("\n[+] [<Filename> + Enter] to make a request\n");
+        println!("[+] \"DISCONNECT\" to disconnect");
         handle_file_reqs(
             &mut reader,
             &mut writer,
@@ -295,7 +296,7 @@ async fn receive_file(
 
             match read_result.await {
                 Ok(0) => {
-                    println!("[-] Connection lost, trying again until [Ctrl + V]...");
+                    println!("[-] Connection lost, trying again until [Ctrl + C]...");
                     sleep(Duration::from_secs(5)).await;
                     continue;
                 }
