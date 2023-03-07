@@ -23,7 +23,7 @@ use tokio::{
 pub async fn listen(
     port: u16,
     fileroot: PathBuf,
-    buffersize: usize,
+    chunksize: usize,
     localhost: bool,
     timeout_duration: u64,
     use_testing_key: bool,
@@ -79,10 +79,10 @@ pub async fn listen(
                 return Ok::<(), Box<dyn Error + Send + Sync>>(());
             }
 
-            // Send buffersize
-            send_msg(&mut writer, (buffersize.to_string() + "\n").as_str()).await?;
+            // Send chunksize
+            send_msg(&mut writer, (chunksize.to_string() + "\n").as_str()).await?;
 
-            // ACK buffersize
+            // ACK chunksize
             if recv_msg_string(&mut reader, &mut vec_buf).await? != "ACK" {
                 return Ok::<(), Box<dyn Error + Send + Sync>>(());
             }
@@ -104,7 +104,7 @@ pub async fn listen(
                 &mut writer,
                 &mut vec_buf,
                 &alt_fileroot,
-                &buffersize,
+                &chunksize,
                 &addr,
             )
             .await?
@@ -239,7 +239,7 @@ async fn handle_file_reqs(
     writer: &mut BufWriter<WriteHalf<'_>>,
     buf: &mut Vec<u8>,
     fileroot: &PathBuf,
-    buffersize: &usize,
+    chunksize: &usize,
     addr: &SocketAddr,
 ) -> Result<Option<String>, Box<dyn Error + Send + Sync>> {
     loop {
@@ -256,7 +256,7 @@ async fn handle_file_reqs(
         println!("\n[REQ] {}: {:#?}", addr, input_path);
         let mut file = File::open(input_path.clone()).await?;
         let mut remaining_data = file.metadata().await?.len();
-        let mut filebuf = vec![0u8; *buffersize];
+        let mut filebuf = vec![0u8; *chunksize];
 
         // Serve the file itself
         while remaining_data != 0 {

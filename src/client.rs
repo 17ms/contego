@@ -45,13 +45,13 @@ pub async fn connect(
             }
         }
 
-        // Receive buffersize
-        let buffersize = recv_msg_string(&mut reader, &mut buf)
+        // Receive chunksize
+        let chunksize = recv_msg_string(&mut reader, &mut buf)
             .await?
             .parse::<usize>()?;
-        println!("[+] Selected buffersize: {}", buffersize);
+        println!("[+] Selected chunksize: {}", chunksize);
 
-        // ACK buffersize
+        // ACK chunksize
         send_msg(&mut writer, "ACK\n").await?;
 
         // Receive metadata
@@ -69,7 +69,7 @@ pub async fn connect(
             &mut reader,
             &mut writer,
             rx,
-            &buffersize,
+            &chunksize,
             &metadata,
             &fileroot,
             &download_all,
@@ -224,7 +224,7 @@ async fn handle_file_reqs(
     reader: &mut BufReader<ReadHalf<'_>>,
     writer: &mut BufWriter<WriteHalf<'_>>,
     rx: Receiver<String>,
-    buffersize: &usize,
+    chunksize: &usize,
     metadata: &HashMap<String, u64>,
     fileroot: &PathBuf,
     download_all: &bool,
@@ -268,7 +268,7 @@ async fn handle_file_reqs(
 
         // Receive the file itself
         let filesize = metadata.get(input_string.as_str()).unwrap().clone();
-        receive_file(reader, &mut file_buf, &filesize, buffersize).await?;
+        receive_file(reader, &mut file_buf, &filesize, chunksize).await?;
 
         // ACK file
         send_msg(writer, "ACK\n").await?;
@@ -285,13 +285,13 @@ async fn receive_file(
     reader: &mut BufReader<ReadHalf<'_>>,
     file_buf: &mut BufWriter<File>,
     filesize: &u64,
-    buffersize: &usize,
+    chunksize: &usize,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let mut remaining_data = *filesize;
-    let mut buf = vec![0u8; *buffersize];
+    let mut buf = vec![0u8; *chunksize];
 
     while remaining_data != 0 {
-        if remaining_data >= *buffersize as u64 {
+        if remaining_data >= *chunksize as u64 {
             let read_result = reader.read(&mut buf);
 
             match read_result.await {

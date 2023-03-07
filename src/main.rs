@@ -16,8 +16,8 @@ struct Args {
     /// Port where the service is hosted
     port: u16,
     #[clap(default_value_t = 8192usize, short = 'b', long, value_parser = validate_arg::<usize>)]
-    /// Buffersize used in the file transfer (bytes)
-    buffersize: usize,
+    /// Chunksize used in the file transfer (bytes)
+    chunksize: usize,
     #[clap(default_value_t = false, long, action)]
     /// Run only in the local network
     localhost: bool,
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             server::listen(
                 args.port,
                 fileroot,
-                args.buffersize,
+                args.chunksize,
                 args.localhost,
                 args.timeout,
                 false,

@@ -30,7 +30,7 @@ USAGE:
     fragilebyte [OPTIONS]
 
 OPTIONS:
-    -b, --buffersize <BUFFERSIZE>    Buffersize used in the file transfer (bytes) [default: 8192]
+    -b, --chunksize <CHUNKSIZE>      Chunksize used in the file transfer (bytes) [default: 8192]
     -f, --fileroot <FILEROOT>        Path to the folder where the files are outputted as a client or
                                      served from as a server [default: './output' / './data']
     -h, --help                       Print help information
