@@ -1,4 +1,4 @@
-use super::crypto;
+use crate::crypto;
 use aes_gcm::{aead::consts::U12, aes::Aes256, AesGcm};
 use rand::rngs::OsRng;
 use std::error::Error;
@@ -12,10 +12,10 @@ pub async fn send_bytes(
     enc: Option<(&mut AesGcm<Aes256, U12>, &mut OsRng)>,
     data: &Vec<u8>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let processed = enc.map_or(Ok(data.clone()), |enc| {
+    let data = enc.map_or(Ok(data.clone()), |enc| {
         crypto::aes_encrypt(data, enc.0, enc.1)
     })?;
-    writer.write_all(&processed).await?;
+    writer.write_all(&data).await?;
     writer.flush().await?;
 
     Ok(())
