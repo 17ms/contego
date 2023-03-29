@@ -1,5 +1,6 @@
 use crate::crypto;
 use aes_gcm::{aead::consts::U12, aes::Aes256, AesGcm};
+use base64::{engine::general_purpose, Engine};
 use rand::rngs::OsRng;
 use std::error::Error;
 use tokio::{
@@ -7,29 +8,49 @@ use tokio::{
     net::tcp::{ReadHalf, WriteHalf},
 };
 
-pub async fn send_bytes(
+pub async fn send(
     writer: &mut BufWriter<WriteHalf<'_>>,
-    enc: Option<(&mut AesGcm<Aes256, U12>, &mut OsRng)>,
+    cipher: Option<&mut AesGcm<Aes256, U12>>,
+    rng: Option<&mut OsRng>,
     data: &Vec<u8>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let data = enc.map_or(Ok(data.clone()), |enc| {
-        crypto::aes_encrypt(data, enc.0, enc.1)
-    })?;
-    writer.write_all(&data).await?;
+    let enc: Vec<u8>;
+    if let (Some(cipher), Some(rng)) = (cipher, rng) {
+        enc = crypto::aes_encrypt(data, cipher, rng)?;
+    } else {
+        enc = data.clone();
+    }
+
+    let mut encoded = general_purpose::STANDARD_NO_PAD
+        .encode(enc)
+        .as_bytes()
+        .to_vec();
+    encoded.push(b':');
+
+    writer.write_all(&encoded).await?;
     writer.flush().await?;
 
     Ok(())
 }
 
-pub async fn recv_bytes(
+pub async fn recv(
     reader: &mut BufReader<ReadHalf<'_>>,
     cipher: Option<&mut AesGcm<Aes256, U12>>,
     buf: &mut Vec<u8>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let recv_bytes = reader.read_until(b'\n', buf).await?;
-    *buf = cipher.map_or(Ok(buf.clone()), |c| crypto::aes_decrypt(&buf, c))?;
-    if recv_bytes == 0 {
-        todo!("ERROR: No message received or client <xyz> crashed");
+    let n = reader.read_until(b':', buf).await?;
+
+    if n == 0 {
+        todo!("error: connection closed unexpectedly");
+    }
+
+    buf.pop();
+    *buf = general_purpose::STANDARD_NO_PAD.decode(&buf)?.to_vec();
+
+    if let Some(cipher) = cipher {
+        *buf = crypto::aes_decrypt(&buf, cipher)?;
+    } else {
+        *buf = buf.clone();
     }
 
     Ok(())
