@@ -580,6 +580,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "contego"
+version = "0.3.0"
+dependencies = [
+ "aes-gcm",
+ "base64",
+ "eframe",
+ "egui",
+ "local-ip-address",
+ "ntest",
+ "rand 0.7.3",
+ "sha256",
+ "tokio",
+ "tokio-test",
+ "x25519-dalek",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -953,23 +970,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a9c384f161156f5260c24a097c56119f9be8c798586aecc13afbcbe7b7e26bf8"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "fragilebyte"
-version = "0.3.0"
-dependencies = [
- "aes-gcm",
- "base64",
- "eframe",
- "egui",
- "local-ip-address",
- "ntest",
- "rand 0.7.3",
- "sha256",
- "tokio",
- "tokio-test",
- "x25519-dalek",
 ]
 
 [[package]]

@@ -1,7 +1,6 @@
 [package]
-name = "fragilebyte"
-authors = ["Arttu Einistö"]
-description = "TCP socket pair for file transfer, backend for https://github.com/einisto/leightbox"
+name = "contego"
+description = "GUI tool for secure file transfer"
 version = "0.3.0"
 edition = "2021"
 

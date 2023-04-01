@@ -1,4 +1,4 @@
-use fragilebyte::{common::Message, connector::Connector, listener::Listener};
+use contego::{common::Message, connector::Connector, listener::Listener};
 use ntest::timeout;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::{
