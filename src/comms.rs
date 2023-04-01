@@ -15,6 +15,7 @@ pub async fn send(
     data: &Vec<u8>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     let enc: Vec<u8>;
+
     if let (Some(cipher), Some(rng)) = (cipher, rng) {
         enc = crypto::aes_encrypt(data, cipher, rng)?;
     } else {
@@ -26,7 +27,6 @@ pub async fn send(
         .as_bytes()
         .to_vec();
     encoded.push(b':');
-
     writer.write_all(&encoded).await?;
     writer.flush().await?;
 
@@ -36,22 +36,22 @@ pub async fn send(
 pub async fn recv(
     reader: &mut BufReader<ReadHalf<'_>>,
     cipher: Option<&mut AesGcm<Aes256, U12>>,
-    buf: &mut Vec<u8>,
-) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let n = reader.read_until(b':', buf).await?;
+) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    let mut buf = Vec::new();
+    let n = reader.read_until(b':', &mut buf).await?;
 
     if n == 0 {
-        todo!("error: connection closed unexpectedly");
+        todo!("maybe error handling :)");
     }
 
     buf.pop();
-    *buf = general_purpose::STANDARD_NO_PAD.decode(&buf)?.to_vec();
+    buf = general_purpose::STANDARD_NO_PAD.decode(&buf)?.to_vec();
 
     if let Some(cipher) = cipher {
-        *buf = crypto::aes_decrypt(&buf, cipher)?;
+        buf = crypto::aes_decrypt(&buf, cipher)?;
     } else {
-        *buf = buf.clone();
+        buf = buf.clone();
     }
 
-    Ok(())
+    Ok(buf)
 }

@@ -5,7 +5,7 @@ use aes_gcm::{
     Aes256Gcm, AesGcm, KeyInit, Nonce,
 };
 use rand::{rngs::OsRng, RngCore};
-use std::error::Error;
+use std::{error::Error, path::Path};
 use tokio::{
     io::{BufReader, BufWriter},
     net::tcp::{ReadHalf, WriteHalf},
@@ -15,34 +15,36 @@ use x25519_dalek::{EphemeralSecret, PublicKey, SharedSecret};
 const AES_NONCE_SIZE: usize = 12;
 const DH_PBK_SIZE: usize = 32;
 
-pub async fn edh(
+async fn edh(
     reader: &mut BufReader<ReadHalf<'_>>,
     writer: &mut BufWriter<WriteHalf<'_>>,
-    buf: &mut Vec<u8>,
     go_first: bool,
 ) -> Result<SharedSecret, Box<dyn Error + Send + Sync>> {
+    let buf: Vec<u8>;
     let own_sec = EphemeralSecret::new(OsRng);
     let own_pbk = PublicKey::from(&own_sec);
     let msg = own_pbk.as_bytes().to_vec();
 
     if go_first {
         comms::send(writer, None, None, &msg).await?;
-        comms::recv(reader, None, buf).await?;
+        buf = comms::recv(reader, None).await?;
     } else {
-        comms::recv(reader, None, buf).await?;
+        buf = comms::recv(reader, None).await?;
         comms::send(writer, None, None, &msg).await?;
     }
 
     let slice: [u8; DH_PBK_SIZE] = buf[..DH_PBK_SIZE].try_into()?;
-    buf.clear();
     let recv_pbk = PublicKey::from(slice);
 
     Ok(own_sec.diffie_hellman(&recv_pbk))
 }
 
-pub fn aes_cipher(
-    secret: SharedSecret,
+pub async fn aes_cipher(
+    reader: &mut BufReader<ReadHalf<'_>>,
+    writer: &mut BufWriter<WriteHalf<'_>>,
+    go_first: bool,
 ) -> Result<AesGcm<Aes256, U12>, Box<dyn Error + Sync + Send>> {
+    let secret = edh(reader, writer, go_first).await?;
     Ok(Aes256Gcm::new(secret.as_bytes().into()))
 }
 
@@ -78,12 +80,19 @@ pub fn aes_decrypt(
     Ok(decrypted)
 }
 
+pub fn try_hash(path: &String) -> Result<String, Box<dyn Error + Send + Sync>> {
+    let path = Path::new(path);
+    let hash = sha256::try_digest(path)?;
+
+    Ok(hash)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_aes() {
+    fn aes_implementations() {
         use aes_gcm::aead;
 
         let mut gen_rng = aead::OsRng;
