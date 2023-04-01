@@ -1,7 +1,7 @@
 /target
 
-data/**
-output/**
+tests/data/**
+tests/output/**
 
-!output/.placeholder
-!data/.placeholder
+!tests/output/.placeholder
+!tests/data/.placeholder
