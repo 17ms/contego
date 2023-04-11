@@ -4,6 +4,7 @@ use aes_gcm::{
     aes::Aes256,
     Aes256Gcm, AesGcm, KeyInit, Nonce,
 };
+use rand::{distributions::Alphanumeric, Rng};
 use rand::{rngs::OsRng, RngCore};
 use std::{error::Error, path::Path};
 use tokio::{
@@ -85,6 +86,14 @@ pub fn try_hash(path: &String) -> Result<String, Box<dyn Error + Send + Sync>> {
     let hash = sha256::try_digest(path)?;
 
     Ok(hash)
+}
+
+pub fn keygen() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(8)
+        .map(char::from)
+        .collect::<String>()
 }
 
 #[cfg(test)]

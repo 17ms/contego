@@ -2,7 +2,6 @@ use crate::{
     common::{Connection, Message},
     comms, crypto,
 };
-use rand::{distributions::Alphanumeric, Rng};
 use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf, str::FromStr};
 use tokio::{
     fs::File,
@@ -217,12 +216,4 @@ impl Listener {
 
         Ok(())
     }
-}
-
-pub fn keygen() -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(8)
-        .map(char::from)
-        .collect::<String>()
 }
