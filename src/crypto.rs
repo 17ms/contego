@@ -70,7 +70,7 @@ pub fn aes_encrypt(
 }
 
 pub fn aes_decrypt(
-    data: &Vec<u8>,
+    data: &[u8],
     cipher: &mut AesGcm<Aes256, U12>,
 ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
     let (nonce_bytes, data) = data.split_at(AES_NONCE_SIZE);

@@ -111,7 +111,7 @@ impl Connector {
             let buf = comms::recv(&mut conn.reader, Some(&mut conn.cipher)).await?;
             let msg = String::from_utf8(buf)?;
 
-            let split: Vec<&str> = msg.split(":").collect();
+            let split: Vec<&str> = msg.split(':').collect();
             let name = split[0].trim().to_string();
             let size: u64 = split[1].trim().parse()?;
             let hash = split[2].trim().to_string();
@@ -149,7 +149,7 @@ impl Connector {
         )
         .await?;
 
-        let mut remaining = req.size.clone();
+        let mut remaining = req.size;
 
         while remaining != 0 {
             let buf = comms::recv(&mut conn.reader, Some(&mut conn.cipher)).await?;
@@ -158,14 +158,13 @@ impl Connector {
             remaining -= buf.len() as u64;
         }
 
-        let msg: Vec<u8>;
         let new_hash = crypto::try_hash(&path)?;
 
-        if new_hash == req.hash {
-            msg = b"OK".to_vec();
+        let msg: Vec<u8> = if new_hash == req.hash {
+            b"OK".to_vec()
         } else {
-            msg = b"ERROR".to_vec();
-        }
+            b"ERROR".to_vec()
+        };
 
         comms::send(
             &mut conn.writer,

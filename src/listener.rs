@@ -7,7 +7,7 @@ use tokio::{
     fs::File,
     io::AsyncReadExt,
     net::{TcpListener, TcpStream},
-    sync::mpsc::{self},
+    sync::mpsc,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -73,7 +73,7 @@ impl Listener {
             return Ok::<(), Box<dyn Error + Send + Sync>>(());
         }
 
-        let index = self.metadata_handler(&mut connection, &files).await?;
+        let index = self.metadata_handler(&mut connection, files).await?;
         tx.send(Message::ConnectionReady).await?;
         self.request_handler(&mut connection, &index).await?;
         tx.send(Message::ClientDisconnect(addr)).await?;
@@ -120,7 +120,7 @@ impl Listener {
         let mut index = HashMap::new();
 
         for path in files {
-            let split: Vec<&str> = path.split("/").collect(); // TODO: different path delimiters?
+            let split: Vec<&str> = path.split('/').collect(); // TODO: different path delimiters?
             let name = split[split.len() - 1].to_string();
             let handle = File::open(PathBuf::from_str(path)?).await?;
             let size = handle.metadata().await?.len();
@@ -203,7 +203,7 @@ impl Listener {
                 )
                 .await?;
 
-                remaining = remaining - n as u64;
+                remaining -= n as u64;
             }
 
             let buf = comms::recv(&mut conn.reader, Some(&mut conn.cipher)).await?;
