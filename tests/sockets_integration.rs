@@ -33,10 +33,10 @@ fn filesync_signals() {
     let output_path = PathBuf::from("./tests/output/");
     let server_addr = SocketAddr::from(([127, 0, 0, 1], 9191));
 
-    let (kill_server_tx, server_rx) = mpsc::channel::<Message>(2);
-    let (server_tx, mut local_server_rx) = mpsc::channel::<Message>(2);
-    let (local_client_tx, client_rx) = mpsc::channel::<Message>(2);
-    let (client_tx, mut local_client_rx) = mpsc::channel::<Message>(2);
+    let (kill_server_tx, server_rx) = mpsc::channel::<Message>(10);
+    let (server_tx, mut local_server_rx) = mpsc::channel::<Message>(10);
+    let (local_client_tx, client_rx) = mpsc::channel::<Message>(10);
+    let (client_tx, mut local_client_rx) = mpsc::channel::<Message>(10);
 
     let server_handle = thread::spawn(move || {
         let listener = Listener::new(server_addr, "xyz", 8192usize);
