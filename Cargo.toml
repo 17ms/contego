@@ -1,6 +1,6 @@
 [package]
 name = "contego"
-description = "GUI tool for secure file transfer"
+description = "Dynamic CLI tool for secure file transfer"
 version = "0.3.0"
 edition = "2021"
 
@@ -8,14 +8,13 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.20.4", features = ["full"] }
-local-ip-address = "0.4.4"
 rand = "0.7.0"
-eframe = "0.21.3"
-egui = "0.21.0"
 x25519-dalek = "1.2.0"
 aes-gcm = "0.10.1"
 base64 = "0.21.0"
 sha256 = "1.1.2"
+inquire = "0.6.1"
+ureq = "2.6.2"
 
 [dev-dependencies]
 tokio-test = "0.4.2"

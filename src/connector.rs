@@ -27,12 +27,12 @@ impl Request {
 #[derive(Debug, Clone)]
 pub struct Connector {
     target_addr: SocketAddr,
-    access_key: &'static str,
+    access_key: String,
     output_path: PathBuf,
 }
 
 impl Connector {
-    pub fn new(target_addr: SocketAddr, access_key: &'static str, output_path: PathBuf) -> Self {
+    pub fn new(target_addr: SocketAddr, access_key: String, output_path: PathBuf) -> Self {
         Self {
             target_addr,
             access_key,

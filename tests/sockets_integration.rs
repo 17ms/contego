@@ -6,6 +6,7 @@ use std::{
     io::{BufWriter, Write},
     net::SocketAddr,
     path::PathBuf,
+    sync::Arc,
     thread,
 };
 use tokio::sync::mpsc;
@@ -39,8 +40,8 @@ fn filesync_signals() {
     let (client_tx, mut local_client_rx) = mpsc::channel::<Message>(10);
 
     let server_handle = thread::spawn(move || {
-        let listener = Listener::new(server_addr, "xyz", 8192usize);
-        block_on(listener.start(server_tx, server_rx, paths)).unwrap();
+        let listener = Listener::new(server_addr, String::from("xyz"), 8192usize);
+        block_on(Arc::new(listener).start(server_tx, server_rx, paths)).unwrap();
     });
 
     let server_channel_handle = thread::spawn(move || {
@@ -52,7 +53,7 @@ fn filesync_signals() {
 
     let client_handle = thread::spawn(move || {
         let output_path = output_path.clone();
-        let connector = Connector::new(server_addr, "xyz", output_path);
+        let connector = Connector::new(server_addr, String::from("xyz"), output_path);
         block_on(connector.connect(client_tx, client_rx)).unwrap()
     });
 

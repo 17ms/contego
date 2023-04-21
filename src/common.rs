@@ -23,6 +23,7 @@ pub enum Message {
     ConnectionReady,
     Shutdown,
 }
+
 pub struct Connection<'a> {
     pub reader: BufReader<ReadHalf<'a>>,
     pub writer: BufWriter<WriteHalf<'a>>,

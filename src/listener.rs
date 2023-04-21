@@ -2,7 +2,9 @@ use crate::{
     common::{Connection, Message},
     comms, crypto,
 };
-use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap, error::Error, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc,
+};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
@@ -10,17 +12,17 @@ use tokio::{
     sync::mpsc,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Listener {
     host_addr: SocketAddr,
-    access_key: &'static str,
+    access_key: String,
     chunksize: usize,
 }
 
 // TODO: impl Drop (?)
 
 impl Listener {
-    pub fn new(host_addr: SocketAddr, access_key: &'static str, chunksize: usize) -> Self {
+    pub fn new(host_addr: SocketAddr, access_key: String, chunksize: usize) -> Self {
         Self {
             host_addr,
             access_key,
@@ -29,7 +31,7 @@ impl Listener {
     }
 
     pub async fn start(
-        self,
+        self: Arc<Self>,
         tx: mpsc::Sender<Message>,
         mut kill: mpsc::Receiver<Message>,
         files: Vec<String>,
@@ -41,7 +43,7 @@ impl Listener {
     }
 
     async fn listen(
-        self,
+        self: Arc<Self>,
         tx: mpsc::Sender<Message>,
         files: Vec<String>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -52,9 +54,12 @@ impl Listener {
             let (mut socket, addr) = listener.accept().await?;
             tx.send(Message::ClientConnect(addr)).await?;
             let this_tx = tx.clone();
+            let this_self = Arc::clone(&self);
 
             tokio::spawn(async move {
-                self.connection(&mut socket, addr, this_tx, &files).await?;
+                this_self
+                    .connection(&mut socket, addr, this_tx, &files)
+                    .await?;
                 Ok::<(), Box<dyn Error + Send + Sync>>(())
             });
         }
@@ -120,7 +125,7 @@ impl Listener {
         let mut index = HashMap::new();
 
         for path in files {
-            let split: Vec<&str> = path.split('/').collect(); // TODO: different path delimiters?
+            let split: Vec<&str> = path.split('/').collect();
             let name = split[split.len() - 1].to_string();
             let handle = File::open(PathBuf::from_str(path)?).await?;
             let size = handle.metadata().await?.len();
