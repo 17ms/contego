@@ -1,7 +1,7 @@
 <div align="center" style="text-align:center">
     <picture>
         <source media="(prefers-color-scheme: dark)" srcset="https://github.com/17ms/contego/blob/master/docs/contego-dark.png">
-        <source media="(prefers-color-scheme: light)" srcset="https://github.com/17ms/contego/blob/master/docs/contego-light.png">
+        <img src="https://github.com/17ms/contego/blob/master/docs/contego-light.png" width="800">
     </picture>
 </div>
 
