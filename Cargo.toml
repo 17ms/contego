@@ -13,7 +13,6 @@ x25519-dalek = "1.2.0"
 aes-gcm = "0.10.1"
 base64 = "0.21.0"
 sha256 = "1.1.2"
-inquire = "0.6.1"
 ureq = "2.6.2"
 
 [dev-dependencies]
