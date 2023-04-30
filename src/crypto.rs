@@ -1,4 +1,4 @@
-use crate::comms;
+use super::comms;
 use aes_gcm::{
     aead::{consts::U12, AeadMut},
     aes::Aes256,
@@ -81,8 +81,7 @@ pub fn aes_decrypt(
     Ok(decrypted)
 }
 
-pub fn try_hash(path: &String) -> Result<String, Box<dyn Error + Send + Sync>> {
-    let path = Path::new(path);
+pub fn try_hash(path: &Path) -> Result<String, Box<dyn Error + Send + Sync>> {
     let hash = sha256::try_digest(path)?;
 
     Ok(hash)

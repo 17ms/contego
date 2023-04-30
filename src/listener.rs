@@ -1,10 +1,8 @@
-use crate::{
+use super::{
     common::{Connection, Message},
     comms, crypto,
 };
-use std::{
-    collections::HashMap, error::Error, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc,
-};
+use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
@@ -22,19 +20,23 @@ pub struct Listener {
 // TODO: impl Drop (?)
 
 impl Listener {
-    pub fn new(host_addr: SocketAddr, access_key: String, chunksize: usize) -> Self {
-        Self {
+    pub fn new(
+        host_addr: SocketAddr,
+        access_key: String,
+        chunksize: usize,
+    ) -> Result<Arc<Self>, Box<dyn Error>> {
+        Ok(Arc::new(Self {
             host_addr,
             access_key,
             chunksize,
-        }
+        }))
     }
 
     pub async fn start(
         self: Arc<Self>,
         tx: mpsc::Sender<Message>,
         mut kill: mpsc::Receiver<Message>,
-        files: Vec<String>,
+        files: Vec<PathBuf>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         tokio::select! {
             _ = self.listen(tx, files) => Ok(()),
@@ -45,7 +47,7 @@ impl Listener {
     async fn listen(
         self: Arc<Self>,
         tx: mpsc::Sender<Message>,
-        files: Vec<String>,
+        files: Vec<PathBuf>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let listener = TcpListener::bind(self.host_addr).await?;
 
@@ -70,7 +72,7 @@ impl Listener {
         socket: &mut TcpStream,
         addr: SocketAddr,
         tx: mpsc::Sender<Message>,
-        files: &Vec<String>,
+        files: &Vec<PathBuf>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut connection = Connection::new(socket).await?;
 
@@ -116,18 +118,18 @@ impl Listener {
 
     async fn metadata(
         &self,
-        files: &Vec<String>,
+        files: &Vec<PathBuf>,
     ) -> Result<
-        (usize, Vec<(String, u64, String)>, HashMap<String, String>),
+        (usize, Vec<(String, u64, String)>, HashMap<String, PathBuf>),
         Box<dyn Error + Send + Sync>,
     > {
         let mut metadata: Vec<(String, u64, String)> = Vec::new();
         let mut index = HashMap::new();
 
         for path in files {
-            let split: Vec<&str> = path.split('/').collect();
+            let split: Vec<&str> = path.to_str().unwrap().split('/').collect();
             let name = split[split.len() - 1].to_string();
-            let handle = File::open(PathBuf::from_str(path)?).await?;
+            let handle = File::open(path).await?;
             let size = handle.metadata().await?.len();
             let hash = crypto::try_hash(path)?;
 
@@ -143,8 +145,8 @@ impl Listener {
     async fn metadata_handler(
         &self,
         conn: &mut Connection<'_>,
-        files: &Vec<String>,
-    ) -> Result<HashMap<String, String>, Box<dyn Error + Send + Sync>> {
+        files: &Vec<PathBuf>,
+    ) -> Result<HashMap<String, PathBuf>, Box<dyn Error + Send + Sync>> {
         let (amt, metadata, index) = self.metadata(files).await?;
         let msg = amt.to_string().as_bytes().to_vec();
 
@@ -183,7 +185,7 @@ impl Listener {
     async fn request_handler(
         &self,
         conn: &mut Connection<'_>,
-        index: &HashMap<String, String>,
+        index: &HashMap<String, PathBuf>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         loop {
             let buf = comms::recv(&mut conn.reader, Some(&mut conn.cipher)).await?;

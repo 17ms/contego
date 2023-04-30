@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     common::{Connection, Message},
     comms, crypto,
 };
@@ -125,13 +125,12 @@ impl Connector {
     async fn new_handle(
         &self,
         filename: &str,
-    ) -> Result<(BufWriter<File>, String), Box<dyn Error + Send + Sync>> {
-        let mut dir_path = self.output_path.clone();
-        dir_path.push(filename);
-        let str_path = dir_path.to_str().unwrap().to_string();
-        let filehandle = File::create(dir_path).await?;
+    ) -> Result<(BufWriter<File>, PathBuf), Box<dyn Error + Send + Sync>> {
+        let mut path = self.output_path.clone();
+        path.push(filename);
+        let filehandle = File::create(&path).await?;
 
-        Ok((BufWriter::new(filehandle), str_path))
+        Ok((BufWriter::new(filehandle), path))
     }
 
     async fn request(
@@ -190,12 +189,6 @@ impl Connector {
                 Message::ClientReq(name) => {
                     let req = Request::new(name, metadata).unwrap(); // TODO: handle
                     self.request(conn, req).await?;
-                }
-                Message::ClientReqAll => {
-                    for name in metadata.keys() {
-                        let req = Request::new(name.clone(), metadata).unwrap(); // TODO: handle
-                        self.request(conn, req).await?;
-                    }
                 }
                 Message::Shutdown => {
                     let msg = b"DISCONNECT".to_vec();

@@ -1,4 +1,4 @@
-use crate::crypto;
+use super::crypto;
 use aes_gcm::{aead::consts::U12, aes::Aes256, AesGcm};
 use rand::rngs::OsRng;
 use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf};
@@ -10,16 +10,17 @@ use tokio::{
     },
 };
 
+const PUBLIC_IPV4: &str = "https://ipinfo.io/ip";
+const PUBLIC_IPV6: &str = "https://ipv6.icanhazip.com";
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Message {
     ErrorMsg(String),
     Files(Vec<PathBuf>),
     Metadata(HashMap<String, (u64, String)>),
-    Chunksize(usize),
     ClientConnect(SocketAddr),
     ClientDisconnect(SocketAddr),
     ClientReq(String),
-    ClientReqAll,
     ConnectionReady,
     Shutdown,
 }
@@ -47,5 +48,25 @@ impl<'a> Connection<'a> {
             cipher,
             rng,
         })
+    }
+}
+
+#[derive(PartialEq, Eq)]
+pub enum Ip {
+    V4,
+    V6,
+}
+
+impl Ip {
+    pub fn fetch(self) -> Result<SocketAddr, Box<dyn Error>> {
+        let addr = match self {
+            Ip::V4 => PUBLIC_IPV4,
+            Ip::V6 => PUBLIC_IPV6,
+        };
+
+        let res = ureq::get(addr).call()?.into_string()?;
+        let addr: SocketAddr = res.trim().parse()?;
+
+        Ok(addr)
     }
 }
