@@ -83,7 +83,7 @@ impl Connector {
         let msg = String::from_utf8(buf)?;
 
         if msg == "FIN" {
-            todo!("maybe error handling :)");
+            return Err("Incorrect access key".into());
         }
 
         Ok(())

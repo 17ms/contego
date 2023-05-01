@@ -15,7 +15,7 @@ const PUBLIC_IPV6: &str = "https://ipv6.icanhazip.com";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Message {
-    ErrorMsg(String),
+    Error(String),
     Files(Vec<PathBuf>),
     Metadata(HashMap<String, (u64, String)>),
     ClientConnect(SocketAddr),

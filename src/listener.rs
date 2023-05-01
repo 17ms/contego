@@ -55,15 +55,23 @@ impl Listener {
             let files = files.clone();
             let (mut socket, addr) = listener.accept().await?;
             tx.send(Message::ClientConnect(addr)).await?;
-            let this_tx = tx.clone();
-            let this_self = Arc::clone(&self);
+            let conn_tx = tx.clone();
+            let err_tx = tx.clone();
+            let conn_self = Arc::clone(&self);
 
-            tokio::spawn(async move {
-                this_self
-                    .connection(&mut socket, addr, this_tx, &files)
-                    .await?;
-                Ok::<(), Box<dyn Error + Send + Sync>>(())
-            });
+            match tokio::spawn(async move {
+                conn_self
+                    .connection(&mut socket, addr, conn_tx, &files)
+                    .await
+            })
+            .await
+            {
+                Ok(_) => {}
+                Err(e) => {
+                    let err_msg = format!("{}: {}", addr, e);
+                    err_tx.send(Message::Error(err_msg)).await?;
+                }
+            };
         }
     }
 
@@ -162,7 +170,7 @@ impl Listener {
         let msg = String::from_utf8(buf)?;
 
         if msg != "AMT" {
-            todo!("maybe error handling :)");
+            return Err("Broken message sequence".into());
         }
 
         for file in metadata {
@@ -217,7 +225,7 @@ impl Listener {
             let msg = String::from_utf8(buf)?;
 
             if msg == "ERROR" {
-                todo!("maybe error handling :)");
+                return Err("Incomplete file request (hashes don't match)".into());
             }
         }
 

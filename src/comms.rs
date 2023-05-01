@@ -41,7 +41,7 @@ pub async fn recv(
     let n = reader.read_until(b':', &mut buf).await?;
 
     if n == 0 {
-        todo!("maybe error handling :)");
+        return Err("Received 0 bytes from the socket".into());
     }
 
     buf.pop();
