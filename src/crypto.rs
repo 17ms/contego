@@ -62,7 +62,10 @@ pub fn aes_encrypt(
     rng: &mut OsRng,
 ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
     let nonce = generate_nonce(rng);
-    let encrypted = cipher.encrypt(&nonce, data.as_ref()).unwrap(); // TODO: handle errors
+    let encrypted = match cipher.encrypt(&nonce, data.as_ref()) {
+        Ok(data) => data,
+        Err(_) => return Err("AES encryption failed".into()),
+    };
     let mut data = nonce.to_vec();
     data.extend_from_slice(&encrypted);
 
@@ -74,9 +77,10 @@ pub fn aes_decrypt(
     cipher: &mut AesGcm<Aes256, U12>,
 ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
     let (nonce_bytes, data) = data.split_at(AES_NONCE_SIZE);
-    let decrypted = cipher
-        .decrypt(Nonce::from_slice(nonce_bytes), data.as_ref())
-        .unwrap(); // TODO: handle errors
+    let decrypted = match cipher.decrypt(Nonce::from_slice(nonce_bytes), data.as_ref()) {
+        Ok(data) => data,
+        Err(_) => return Err("AES decryption failed".into()),
+    };
 
     Ok(decrypted)
 }
