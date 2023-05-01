@@ -17,7 +17,7 @@ The initial key exchange is performed with elliptic-curve Diffie-Hellman. Genera
 
 ## Cellular networks
 
-Most cellular ISP's tend to block port forwarding on CGNAT level, which makes it impossible to create inbound connections to such network without a VPN. Luckily many consumer VPNs and self-hosted solutions make port forwarding a trivial task. This is the main reason why the client must fetch information about the public IP from an external service (https://ipinfo.io/ip for IPV4 and https://ipv6.icanhazip.com for IPV6). 
+Most cellular ISP's tend to block port forwarding on CGNAT level, which makes it impossible to create inbound connections to such network without a VPN. Luckily many consumer VPNs and self-hosted solutions make port forwarding a trivial task. This is the main reason why the client must fetch information about the public IP from an external service (https://ipinfo.io/ip for IPv4 and https://ipv6.icanhazip.com for IPv6). 
 
 ## Usage
 
