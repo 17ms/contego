@@ -184,28 +184,49 @@ impl Connector {
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         loop {
             let rx_msg = rx.recv().await;
+            if rx_msg.is_none() {
+                continue;
+            }
 
-            match rx_msg.unwrap() {
-                Message::ClientReq(name) => {
-                    let req = Request::new(name, metadata).unwrap(); // TODO: handle
-                    self.request(conn, req).await?;
-                }
-                Message::Shutdown => {
-                    let msg = b"DISCONNECT".to_vec();
-                    comms::send(
-                        &mut conn.writer,
-                        Some(&mut conn.cipher),
-                        Some(&mut conn.rng),
-                        &msg,
-                    )
-                    .await?;
-
-                    break;
-                }
-                _ => continue,
+            match self.msg_handler(rx_msg.unwrap(), conn, metadata).await {
+                Ok(true) => continue,
+                Ok(false) => break,
+                Err(e) => return Err(e),
             }
         }
 
         Ok(())
+    }
+
+    async fn msg_handler(
+        &self,
+        msg: Message,
+        conn: &mut Connection<'_>,
+        metadata: &HashMap<String, (u64, String)>,
+    ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+        match msg {
+            Message::ClientReq(name) => {
+                let req = match Request::new(name, metadata) {
+                    Some(req) => req,
+                    None => return Ok(true),
+                };
+                self.request(conn, req).await?;
+
+                Ok(true)
+            }
+            Message::Shutdown => {
+                let msg = b"DISCONNECT".to_vec();
+                comms::send(
+                    &mut conn.writer,
+                    Some(&mut conn.cipher),
+                    Some(&mut conn.rng),
+                    &msg,
+                )
+                .await?;
+
+                Ok(false)
+            }
+            _ => Ok(true),
+        }
     }
 }
