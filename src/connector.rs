@@ -183,12 +183,12 @@ impl Connector {
         metadata: &HashMap<String, (u64, String)>,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         loop {
-            let rx_msg = rx.recv().await;
-            if rx_msg.is_none() {
+            let msg = rx.recv().await;
+            if msg.is_none() {
                 continue;
             }
 
-            match self.msg_handler(rx_msg.unwrap(), conn, metadata).await {
+            match self.msg_handler(msg.unwrap(), conn, metadata).await {
                 Ok(true) => continue,
                 Ok(false) => break,
                 Err(e) => return Err(e),
@@ -206,10 +206,7 @@ impl Connector {
     ) -> Result<bool, Box<dyn Error + Send + Sync>> {
         match msg {
             Message::ClientReq(name) => {
-                let req = match Request::new(name, metadata) {
-                    Some(req) => req,
-                    None => return Ok(true),
-                };
+                let req = Request::new(name, metadata).unwrap();
                 self.request(conn, req).await?;
 
                 Ok(true)
