@@ -1,13 +1,15 @@
-use crate::{
-    common::{Connection, Message},
-    comms, crypto,
-};
 use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf};
+
 use tokio::{
     fs::File,
     io::{AsyncWriteExt, BufWriter},
     net::TcpStream,
     sync::mpsc,
+};
+
+use crate::{
+    common::{Connection, Message},
+    comms, crypto,
 };
 
 #[derive(Debug)]

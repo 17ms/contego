@@ -1,7 +1,7 @@
-use crate::crypto;
+use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf};
+
 use aes_gcm::{aead::consts::U12, aes::Aes256, AesGcm};
 use rand::rngs::OsRng;
-use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf};
 use tokio::{
     io::{BufReader, BufWriter},
     net::{
@@ -9,6 +9,8 @@ use tokio::{
         TcpStream,
     },
 };
+
+use crate::crypto;
 
 const PUBLIC_IPV4: &str = "https://ipinfo.io/ip";
 const PUBLIC_IPV6: &str = "https://ipv6.icanhazip.com";

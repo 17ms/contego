@@ -1,17 +1,18 @@
-use super::comms;
+use std::{error::Error, path::Path};
+
 use aes_gcm::{
-    aead::{consts::U12, AeadMut},
+    aead::{consts::U12, Aead},
     aes::Aes256,
     Aes256Gcm, AesGcm, KeyInit, Nonce,
 };
-use rand::{distributions::Alphanumeric, Rng};
-use rand::{rngs::OsRng, RngCore};
-use std::{error::Error, path::Path};
+use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
 use tokio::{
     io::{BufReader, BufWriter},
     net::tcp::{ReadHalf, WriteHalf},
 };
 use x25519_dalek::{EphemeralSecret, PublicKey, SharedSecret};
+
+use crate::comms;
 
 const AES_NONCE_SIZE: usize = 12;
 const DH_PBK_SIZE: usize = 32;

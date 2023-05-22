@@ -1,12 +1,14 @@
-use crate::crypto;
+use std::error::Error;
+
 use aes_gcm::{aead::consts::U12, aes::Aes256, AesGcm};
 use base64::{engine::general_purpose, Engine};
 use rand::rngs::OsRng;
-use std::error::Error;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
     net::tcp::{ReadHalf, WriteHalf},
 };
+
+use crate::crypto;
 
 pub async fn send(
     writer: &mut BufWriter<WriteHalf<'_>>,
