@@ -5,85 +5,85 @@ use aes_gcm::{
     aes::Aes256,
     Aes256Gcm, AesGcm, KeyInit, Nonce,
 };
-use rand::{distributions::Alphanumeric, rngs::OsRng, Rng, RngCore};
-use tokio::{
-    io::{BufReader, BufWriter},
-    net::tcp::{ReadHalf, WriteHalf},
-};
+use rand::{rngs::OsRng, RngCore};
 use x25519_dalek::{EphemeralSecret, PublicKey, SharedSecret};
 
-use crate::comms;
+use crate::sockets::SocketHandler;
 
 const AES_NONCE_SIZE: usize = 12;
 const DH_PBK_SIZE: usize = 32;
 
-async fn edh(
-    reader: &mut BufReader<ReadHalf<'_>>,
-    writer: &mut BufWriter<WriteHalf<'_>>,
-    go_first: bool,
-) -> Result<SharedSecret, Box<dyn Error + Send + Sync>> {
-    let buf: Vec<u8>;
-    let own_sec = EphemeralSecret::new(OsRng);
-    let own_pbk = PublicKey::from(&own_sec);
-    let msg = own_pbk.as_bytes().to_vec();
+#[derive(Clone)]
+pub struct Crypto {
+    cipher: AesGcm<Aes256, U12>,
+    rng: OsRng,
+}
 
-    if go_first {
-        comms::send(writer, None, None, &msg).await?;
-        buf = comms::recv(reader, None).await?;
-    } else {
-        buf = comms::recv(reader, None).await?;
-        comms::send(writer, None, None, &msg).await?;
+impl Crypto {
+    pub async fn new(
+        handler: &mut SocketHandler<'_>,
+        go_first: bool,
+    ) -> Result<Self, Box<dyn Error + Sync + Send>> {
+        let secret = Self::ecdh(handler, go_first).await?;
+        let cipher = Aes256Gcm::new(secret.as_bytes().into());
+        let rng = OsRng;
+
+        Ok(Self { cipher, rng })
     }
 
-    let slice: [u8; DH_PBK_SIZE] = buf[..DH_PBK_SIZE].try_into()?;
-    let recv_pbk = PublicKey::from(slice);
+    async fn ecdh(
+        handler: &mut SocketHandler<'_>,
+        go_first: bool,
+    ) -> Result<SharedSecret, Box<dyn Error + Send + Sync>> {
+        let buf: Vec<u8>;
+        let own_sec = EphemeralSecret::new(OsRng);
+        let own_pbk = PublicKey::from(&own_sec);
+        let msg = own_pbk.as_bytes().to_vec();
 
-    Ok(own_sec.diffie_hellman(&recv_pbk))
-}
+        if go_first {
+            handler.send(&msg).await?;
+            buf = handler.recv().await?;
+        } else {
+            buf = handler.recv().await?;
+            handler.send(&msg).await?;
+        }
 
-pub async fn aes_cipher(
-    reader: &mut BufReader<ReadHalf<'_>>,
-    writer: &mut BufWriter<WriteHalf<'_>>,
-    go_first: bool,
-) -> Result<AesGcm<Aes256, U12>, Box<dyn Error + Sync + Send>> {
-    let secret = edh(reader, writer, go_first).await?;
-    Ok(Aes256Gcm::new(secret.as_bytes().into()))
-}
+        let slice: [u8; DH_PBK_SIZE] = buf[..DH_PBK_SIZE].try_into()?;
+        let recv_pbk = PublicKey::from(slice);
 
-fn generate_nonce(rng: &mut impl RngCore) -> Nonce<U12> {
-    let mut nonce = Nonce::default();
-    rng.fill_bytes(&mut nonce);
+        Ok(own_sec.diffie_hellman(&recv_pbk))
+    }
 
-    nonce
-}
+    fn nonce(&self) -> Nonce<U12> {
+        let mut nonce = Nonce::default();
+        self.rng.fill_bytes(&mut nonce);
 
-pub fn aes_encrypt(
-    data: &Vec<u8>,
-    cipher: &mut AesGcm<Aes256, U12>,
-    rng: &mut OsRng,
-) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-    let nonce = generate_nonce(rng);
-    let encrypted = match cipher.encrypt(&nonce, data.as_ref()) {
-        Ok(data) => data,
-        Err(_) => return Err("AES encryption failed".into()),
-    };
-    let mut data = nonce.to_vec();
-    data.extend_from_slice(&encrypted);
+        nonce
+    }
 
-    Ok(data)
-}
+    pub async fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+        let nonce = self.nonce();
+        let encrypted = match self.cipher.encrypt(&nonce, data.as_ref()) {
+            Ok(data) => data,
+            Err(e) => return Err(format!("Encryption failed: {}", e).into()),
+        };
 
-pub fn aes_decrypt(
-    data: &[u8],
-    cipher: &mut AesGcm<Aes256, U12>,
-) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-    let (nonce_bytes, data) = data.split_at(AES_NONCE_SIZE);
-    let decrypted = match cipher.decrypt(Nonce::from_slice(nonce_bytes), data.as_ref()) {
-        Ok(data) => data,
-        Err(_) => return Err("AES decryption failed".into()),
-    };
+        let mut data = nonce.to_vec();
+        data.extend_from_slice(&encrypted);
 
-    Ok(decrypted)
+        Ok(data)
+    }
+
+    pub async fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+        let (nonce_bytes, data) = data.split_at(AES_NONCE_SIZE);
+        let nonce = Nonce::from_slice(nonce_bytes);
+        let decrypted = match self.cipher.decrypt(nonce, data.as_ref()) {
+            Ok(data) => data,
+            Err(e) => return Err(format!("Decryption failed: {}", e).into()),
+        };
+
+        Ok(decrypted)
+    }
 }
 
 pub fn try_hash(path: &Path) -> Result<String, Box<dyn Error + Send + Sync>> {
@@ -92,31 +92,4 @@ pub fn try_hash(path: &Path) -> Result<String, Box<dyn Error + Send + Sync>> {
     Ok(hash)
 }
 
-pub fn keygen() -> String {
-    rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(8)
-        .map(char::from)
-        .collect::<String>()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn aes_implementations() {
-        use aes_gcm::aead;
-
-        let mut gen_rng = aead::OsRng;
-        let key = Aes256Gcm::generate_key(&mut gen_rng);
-        let mut cipher = Aes256Gcm::new(&key);
-
-        let data = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let mut aes_rng = OsRng;
-        let enc = aes_encrypt(&data, &mut cipher, &mut aes_rng).unwrap();
-        let dec = aes_decrypt(&enc, &mut cipher).unwrap();
-
-        assert_eq!(data, dec);
-    }
-}
+// TODO: unit test if deemed necessary
