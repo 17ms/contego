@@ -1,7 +1,7 @@
 pub mod cli;
-pub mod connector;
+pub mod client;
 pub mod crypto;
-pub mod listener;
 pub mod parser;
+pub mod server;
 pub mod sockets;
 pub mod util;

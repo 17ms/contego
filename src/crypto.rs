@@ -41,11 +41,11 @@ impl Crypto {
         let msg = own_pbk.as_bytes().to_vec();
 
         if go_first {
-            handler.send(&msg).await?;
-            buf = handler.recv().await?;
+            handler.send_raw(&msg).await?;
+            buf = handler.recv_raw().await?;
         } else {
-            buf = handler.recv().await?;
-            handler.send(&msg).await?;
+            buf = handler.recv_raw().await?;
+            handler.send_raw(&msg).await?;
         }
 
         let slice: [u8; DH_PBK_SIZE] = buf[..DH_PBK_SIZE].try_into()?;

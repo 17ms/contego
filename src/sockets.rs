@@ -36,26 +36,26 @@ impl<'a> SocketHandler<'a> {
         self.crypto = Some(crypto);
     }
 
-    pub async fn sender(&mut self, data: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn send(&mut self, data: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
         let data = match &self.crypto {
             Some(c) => c.encrypt(data).await?,
             None => data.to_vec(),
         };
 
-        self.send(&data).await?;
+        self.send_raw(&data).await?;
 
         Ok(())
     }
 
-    pub async fn send(&mut self, data: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn send_raw(&mut self, data: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.writer.write_all(data).await?;
         self.writer.flush().await?;
 
         Ok(())
     }
 
-    pub async fn receiver(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-        let mut buf = self.recv().await?;
+    pub async fn recv(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+        let mut buf = self.recv_raw().await?;
         buf.pop();
         buf = general_purpose::STANDARD_NO_PAD.decode(&buf)?.to_vec();
 
@@ -67,7 +67,7 @@ impl<'a> SocketHandler<'a> {
         Ok(data)
     }
 
-    pub async fn recv(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    pub async fn recv_raw(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let mut buf = Vec::new();
         let n = self.reader.read_until(b':', &mut buf).await?;
 
