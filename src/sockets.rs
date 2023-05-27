@@ -65,7 +65,7 @@ impl<'a> SocketHandler<'a> {
     }
 
     pub async fn recv(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
-        let mut buf = self.recv_raw().await?;
+        let mut buf = self.recv_raw(1).await?;
         buf.pop();
         buf = general_purpose::STANDARD_NO_PAD.decode(&buf)?.to_vec();
 
@@ -77,13 +77,24 @@ impl<'a> SocketHandler<'a> {
         Ok(data)
     }
 
-    pub async fn recv_raw(&mut self) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    pub async fn recv_raw(
+        &mut self,
+        min_limit: usize,
+    ) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
         let mut buf = Vec::new();
-        let n = self.reader.read_until(b':', &mut buf).await?;
 
-        if n == 0 {
-            return Err("Received 0 bytes from the socket".into());
+        while buf.len() <= min_limit {
+            let n = self.reader.read_until(b':', &mut buf).await?;
+
+            if n == 0 {
+                return Err("Received 0 bytes from the socket".into());
+            }
         }
+
+        /*
+        TODO: use min_limit to check whether read_until has reached EOF before reading all the necessary bytes
+        (e.g. regarding ecdh key exchange) --> loop and read until buf.len() == min_limit
+        */
 
         debug!("Received {} bytes from the socket", buf.len());
 

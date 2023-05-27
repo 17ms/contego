@@ -47,9 +47,9 @@ impl Crypto {
 
         if go_first {
             handler.send_raw(&msg).await?;
-            buf = handler.recv_raw().await?;
+            buf = handler.recv_raw(DH_PBK_SIZE).await?;
         } else {
-            buf = handler.recv_raw().await?;
+            buf = handler.recv_raw(DH_PBK_SIZE).await?;
             handler.send_raw(&msg).await?;
         }
 
