@@ -50,10 +50,10 @@ impl FileInfo {
     }
 }
 
-fn filepaths(
+pub fn filepaths(
     infile: Option<PathBuf>,
     files: Option<Vec<PathBuf>>,
-) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+) -> Result<Vec<PathBuf>, Box<dyn Error + Send + Sync>> {
     info!("Collecting filepaths");
 
     let mut filepaths = Vec::new();
