@@ -1,76 +1,81 @@
-use contego::{common::Message, connector::Connector, crypto, listener::Listener};
-use ntest::timeout;
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use std::{
     fs::{self, File},
     io::{BufWriter, Write},
-    net::SocketAddr,
     path::PathBuf,
     str::FromStr,
-    thread,
 };
-use tokio::sync::mpsc;
-use tokio_test::block_on;
 
-#[test]
+use contego::{
+    client::Client,
+    server::Server,
+    util::{metadata, Ip},
+};
+use env_logger::Env;
+use log::debug;
+use ntest::timeout;
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use tokio::{fs::read_to_string, sync::mpsc};
+
+#[tokio::test]
 #[timeout(2000)]
-/// Tests communication between UI and individual handlers by mocking signals.
-fn filesync_signals() {
-    let (testdata, paths) = write_testfiles();
+/// Ensures backend communications integrity & the ability to handle individual requests.
+async fn sockets_integration() {
+    env_logger::Builder::from_env(Env::default().default_filter_or("debug"))
+        .is_test(true)
+        .try_init()
+        .unwrap();
+    //env_logger::builder().is_test(true).try_init().unwrap();
 
-    let output_path = PathBuf::from("./tests/output/");
-    let addr = SocketAddr::from(([127, 0, 0, 1], 9191));
-    let key = crypto::keygen();
+    debug!("Initializing and starting the test");
+
+    let (testdata, paths) = testdata();
+    let (metadata, index) = metadata(&paths).await.unwrap();
+
+    let addr = Ip::Local.fetch(8080).unwrap();
+    let outdir = PathBuf::from("./tests/output/");
+    let key = String::from("testkey");
     let c_key = key.clone();
 
-    let (kstx, srx) = mpsc::channel::<Message>(10);
-    let (stx, mut lsrx) = mpsc::channel::<Message>(10);
-    let (lctx, crx) = mpsc::channel::<Message>(10);
-    let (ctx, mut lcrx) = mpsc::channel::<Message>(10);
+    let (tx, rx) = mpsc::channel::<()>(1);
 
-    let server_handle = thread::spawn(move || {
-        let listener = Listener::new(addr, key, 8192usize).unwrap();
-        block_on(listener.start(stx, srx, paths)).unwrap();
+    let server_handle = tokio::spawn(async move {
+        debug!("Initializing the asynchronous server task");
+        let server = Server::new(addr, key, 8192, metadata, index);
+        debug!("Starting to listen to incoming connections");
+        server.start(rx).await.unwrap();
     });
 
-    let server_channel_handle = thread::spawn(move || {
-        block_on(lsrx.recv()).unwrap(); // ClientConnect
-        block_on(lsrx.recv()).unwrap(); // ConnectionReady
-        block_on(lsrx.recv()).unwrap(); // ClientDisconnect
-        block_on(kstx.send(Message::Shutdown)).unwrap();
+    let client_handle = tokio::spawn(async move {
+        debug!("Initializing the asynchronous client task");
+        let client = Client::new(addr, c_key, outdir);
+        debug!("Connecting to the server");
+        client.connection().await.unwrap();
     });
 
-    let client_handle = thread::spawn(move || {
-        let output_path = output_path.clone();
-        let connector = Connector::new(addr, c_key, output_path);
-        block_on(connector.connect(ctx, crx)).unwrap()
-    });
+    client_handle.await.unwrap();
+    tx.send(()).await.unwrap();
+    server_handle.await.unwrap();
 
-    let client_channel_handle = thread::spawn(move || {
-        let metadata = block_on(lcrx.recv()).unwrap(); // Metadata(HashMap)
-
-        if let Message::Metadata(inner) = metadata {
-            assert_eq!(inner.len(), 3);
-            for (filename, _) in inner {
-                block_on(lctx.send(Message::ClientReq(filename))).unwrap();
-            }
-        }
-
-        block_on(lctx.send(Message::Shutdown)).unwrap();
-    });
-
-    client_handle.join().unwrap();
-    client_channel_handle.join().unwrap();
-    server_handle.join().unwrap();
-    server_channel_handle.join().unwrap();
+    debug!("Checking for file integrity");
 
     for file in testdata {
+        let path = String::from("./tests/output/") + file.0;
+        let recv_content = read_to_string(path).await.unwrap();
+
+        assert_eq!(
+            recv_content, file.1,
+            "Output '{}' doesn't match the input '{}'",
+            recv_content, file.1
+        );
+
         fs::remove_file(String::from("./tests/output/") + file.0).unwrap();
         fs::remove_file(String::from("./tests/data/") + file.0).unwrap();
+
+        debug!("File '{}' checked and removed successfully", file.0);
     }
 }
 
-fn write_testfiles() -> (Vec<(&'static str, String)>, Vec<PathBuf>) {
+fn testdata() -> (Vec<(&'static str, String)>, Vec<PathBuf>) {
     let mut paths = Vec::new();
     let testdata = vec![
         ("1.txt", generate_data()),

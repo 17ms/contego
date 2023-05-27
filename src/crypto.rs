@@ -5,6 +5,7 @@ use aes_gcm::{
     aes::Aes256,
     Aes256Gcm, AesGcm, KeyInit, Nonce,
 };
+use log::debug;
 use rand::{rngs::OsRng, RngCore};
 use x25519_dalek::{EphemeralSecret, PublicKey, SharedSecret};
 
@@ -35,10 +36,14 @@ impl Crypto {
         handler: &mut SocketHandler<'_>,
         go_first: bool,
     ) -> Result<SharedSecret, Box<dyn Error + Send + Sync>> {
+        debug!("Starting ECDH key exchange");
+
         let buf: Vec<u8>;
         let own_sec = EphemeralSecret::new(OsRng);
         let own_pbk = PublicKey::from(&own_sec);
-        let msg = own_pbk.as_bytes().to_vec();
+        let mut msg = own_pbk.as_bytes().to_vec();
+
+        msg.push(b':'); // manual delimiter
 
         if go_first {
             handler.send_raw(&msg).await?;
@@ -48,20 +53,29 @@ impl Crypto {
             handler.send_raw(&msg).await?;
         }
 
+        debug!("Calculating PPK from the shared secret");
+
         let slice: [u8; DH_PBK_SIZE] = buf[..DH_PBK_SIZE].try_into()?;
         let recv_pbk = PublicKey::from(slice);
+        let pvk = own_sec.diffie_hellman(&recv_pbk);
 
-        Ok(own_sec.diffie_hellman(&recv_pbk))
+        debug!("PPK successfully generated");
+
+        Ok(pvk)
     }
 
-    fn nonce(&self) -> Nonce<U12> {
+    fn nonce(&mut self) -> Nonce<U12> {
+        debug!("Generating new unique nonce (AEAD)");
+
         let mut nonce = Nonce::default();
         self.rng.fill_bytes(&mut nonce);
 
         nonce
     }
 
-    pub async fn encrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+    pub async fn encrypt(&mut self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+        debug!("Encrypting {} bytes payload", data.len());
+
         let nonce = self.nonce();
         let encrypted = match self.cipher.encrypt(&nonce, data.as_ref()) {
             Ok(data) => data,
@@ -75,6 +89,8 @@ impl Crypto {
     }
 
     pub async fn decrypt(&self, data: &[u8]) -> Result<Vec<u8>, Box<dyn Error + Send + Sync>> {
+        debug!("Decrypting {} bytes payload", data.len());
+
         let (nonce_bytes, data) = data.split_at(AES_NONCE_SIZE);
         let nonce = Nonce::from_slice(nonce_bytes);
         let decrypted = match self.cipher.decrypt(nonce, data.as_ref()) {
@@ -87,9 +103,9 @@ impl Crypto {
 }
 
 pub fn try_hash(path: &Path) -> Result<String, Box<dyn Error + Send + Sync>> {
+    debug!("Calculating SHA hash");
+
     let hash = sha256::try_digest(path)?;
 
     Ok(hash)
 }
-
-// TODO: unit test if deemed necessary

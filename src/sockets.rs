@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use base64::{engine::general_purpose, Engine};
+use log::debug;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter},
     net::{
@@ -20,8 +21,8 @@ pub struct SocketHandler<'a> {
 impl<'a> SocketHandler<'a> {
     pub fn new(socket: &'a mut TcpStream) -> Self {
         let (reader, writer) = socket.split();
-        let mut reader = BufReader::new(reader);
-        let mut writer = BufWriter::new(writer);
+        let reader = BufReader::new(reader);
+        let writer = BufWriter::new(writer);
 
         Self {
             writer,
@@ -30,19 +31,26 @@ impl<'a> SocketHandler<'a> {
         }
     }
 
-    pub fn set_crypto(&self, crypto: Crypto) {
+    pub fn set_crypto(&mut self, crypto: Crypto) {
         // setting up AES cipher requires DH key exchange in plaintext,
         // meaning crypto can't be initialized at the same time as the socket handler
+        debug!("Cryptography module initialized to the connection");
         self.crypto = Some(crypto);
     }
 
     pub async fn send(&mut self, data: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let data = match &self.crypto {
+        let data = match &mut self.crypto {
             Some(c) => c.encrypt(data).await?,
-            None => data.to_vec(),
+            None => data.to_vec(), // syntactic sugar, never actually called
         };
 
-        self.send_raw(&data).await?;
+        let mut encoded = general_purpose::STANDARD_NO_PAD
+            .encode(data)
+            .as_bytes()
+            .to_vec();
+        encoded.push(b':');
+
+        self.send_raw(&encoded).await?;
 
         Ok(())
     }
@@ -50,6 +58,8 @@ impl<'a> SocketHandler<'a> {
     pub async fn send_raw(&mut self, data: &[u8]) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.writer.write_all(data).await?;
         self.writer.flush().await?;
+
+        debug!("Sent {} bytes to the socket", data.len());
 
         Ok(())
     }
@@ -74,6 +84,8 @@ impl<'a> SocketHandler<'a> {
         if n == 0 {
             return Err("Received 0 bytes from the socket".into());
         }
+
+        debug!("Received {} bytes from the socket", buf.len());
 
         Ok(buf)
     }

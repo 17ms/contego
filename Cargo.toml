@@ -1,21 +1,23 @@
 [package]
 name = "contego"
-description = "Dynamic CLI tool for secure file transfer"
+description = "CLI tool for file transfer"
 version = "0.3.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.20.4", features = ["full"] }
+tokio = { version = "1.28.1", features = ["full"] }
 rand = "0.7.0"
 x25519-dalek = "1.2.0"
-aes-gcm = "0.10.1"
-base64 = "0.21.0"
-sha256 = "1.1.2"
+aes-gcm = "0.10.2"
+base64 = "0.21.2"
+sha256 = "1.1.3"
 ureq = "2.6.2"
-clap = { version = "4.2.5", features = ["derive"] }
+clap = { version = "4.3.0", features = ["derive"] }
+log = "0.4.17"
+env_logger = "0.10.0"
 
 [dev-dependencies]
 tokio-test = "0.4.2"
-ntest = "0.8.1"
+ntest = "0.9.0"

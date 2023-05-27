@@ -1,5 +1,6 @@
 use std::{collections::HashMap, error::Error, fs, net::SocketAddr, path::PathBuf};
 
+use log::{debug, info};
 use tokio::{fs::File, io::BufWriter};
 
 use crate::crypto;
@@ -16,6 +17,8 @@ pub enum Ip {
 
 impl Ip {
     pub fn fetch(self, port: u16) -> Result<SocketAddr, Box<dyn Error + Send + Sync>> {
+        debug!("Fetching IP information");
+
         let addr = match self {
             Ip::V4 => PUBLIC_IPV4,
             Ip::V6 => PUBLIC_IPV6,
@@ -27,6 +30,8 @@ impl Ip {
 
         let res = format!("{}:{}", ureq::get(addr).call()?.into_string()?.trim(), port);
         let addr = res.parse::<SocketAddr>()?;
+
+        debug!("IP: {}", res);
 
         Ok(addr)
     }
@@ -49,6 +54,8 @@ fn filepaths(
     infile: Option<PathBuf>,
     files: Option<Vec<PathBuf>>,
 ) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+    info!("Collecting filepaths");
+
     let mut filepaths = Vec::new();
 
     if let Some(infile) = infile {
@@ -56,20 +63,22 @@ fn filepaths(
         for path in paths.lines() {
             filepaths.push(PathBuf::from(path));
         }
-    }
-
-    if let Some(files) = files {
+    } else if let Some(files) = files {
         for file in files {
             filepaths.push(file);
         }
     }
+
+    debug!("Filepaths collection finished (total: {})", filepaths.len());
 
     Ok(filepaths)
 }
 
 pub async fn metadata(
     files: &Vec<PathBuf>,
-) -> Result<(Vec<(String, u64, String)>, HashMap<String, PathBuf>), Box<dyn Error + Send + Sync>> {
+) -> Result<(Vec<FileInfo>, HashMap<String, PathBuf>), Box<dyn Error + Send + Sync>> {
+    info!("Collecting metadata");
+
     let mut metadata = Vec::new();
     let mut index = HashMap::new();
 
@@ -81,10 +90,18 @@ pub async fn metadata(
         let hash = crypto::try_hash(path)?;
 
         if size > 0 {
-            metadata.push((name, size, hash.clone()));
+            debug!("Collecting '{}' metadata", name);
+
+            let info = FileInfo::new(name, size, hash.clone());
+            metadata.push(info);
             index.insert(hash, path.clone());
         }
     }
+
+    debug!(
+        "Metadata collection successfully done (total: {})",
+        metadata.len()
+    );
 
     Ok((metadata, index))
 }
@@ -93,6 +110,8 @@ pub async fn new_file(
     mut path: PathBuf,
     name: &str,
 ) -> Result<(BufWriter<File>, PathBuf), Box<dyn Error + Send + Sync>> {
+    debug!("New file handle for '{}'", name);
+
     path.push(name);
     let handle = File::create(&path).await?;
 

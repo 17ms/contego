@@ -1,5 +1,6 @@
 use std::{collections::HashMap, error::Error, net::SocketAddr, path::PathBuf, sync::Arc};
 
+use log::{debug, error, info};
 use tokio::{
     fs::File,
     io::AsyncReadExt,
@@ -48,30 +49,40 @@ impl Server {
     async fn listen(self: Arc<Self>) -> Result<(), Box<dyn Error + Send + Sync>> {
         let listener = TcpListener::bind(self.addr).await?;
 
+        info!("Listening on {} - Access key: {}", self.addr, self.key);
+
         loop {
             let this_self = self.clone();
             let (mut socket, addr) = listener.accept().await?;
 
-            // log: new client connected: <addr>
+            info!("New client connected: {}", addr);
 
-            match tokio::spawn(async move { this_self.connection(&mut socket).await }).await {
-                Ok(_) => {}
-                Err(e) => eprintln!("Error during connection ({}): {}", addr, e),
+            match tokio::spawn(async move { this_self.connection(&mut socket, &addr).await }).await
+            {
+                Ok(_) => info!("Client disconnected: {}", addr),
+                Err(e) => error!("Fatal error in connection {}: {}", addr, e),
             };
         }
     }
 
-    async fn connection(&self, socket: &mut TcpStream) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn connection(
+        &self,
+        socket: &mut TcpStream,
+        addr: &SocketAddr,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut handler = SocketHandler::new(socket);
-        let crypto = Crypto::new(&mut handler, true).await?;
+        let crypto = Crypto::new(&mut handler, false).await?;
         handler.set_crypto(crypto);
 
-        if !self.authorize(&mut handler).await? {
+        debug!("({}): Connection established", addr);
+
+        if !self.authorize(&mut handler, addr).await? {
+            info!("({}): Invalid access key", addr);
             return Ok(());
         }
 
-        self.metadata(&mut handler).await?;
-        self.requests(&mut handler).await?;
+        self.metadata(&mut handler, addr).await?;
+        self.requests(&mut handler, addr).await?;
 
         Ok(())
     }
@@ -79,7 +90,10 @@ impl Server {
     async fn authorize(
         &self,
         handler: &mut SocketHandler<'_>,
+        addr: &SocketAddr,
     ) -> Result<bool, Box<dyn Error + Send + Sync>> {
+        debug!("({}): Starting authorization", addr);
+
         let buf = handler.recv().await?;
         let key = String::from_utf8(buf)?;
 
@@ -96,13 +110,18 @@ impl Server {
 
         handler.send(&res_msg).await?;
 
+        debug!("({}): Authorization finished", addr);
+
         Ok(is_valid)
     }
 
     async fn metadata(
         &self,
         handler: &mut SocketHandler<'_>,
+        addr: &SocketAddr,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        debug!("({}): Starting to send metadata", addr);
+
         let amt = self.metadata.len();
         let msg = amt.to_string().as_bytes().to_vec();
 
@@ -115,11 +134,15 @@ impl Server {
             return Err("Broken message sequence during metadata exchange".into());
         }
 
+        debug!("({}): Metadata amount confirmed successfully", addr);
+
         for file in &self.metadata {
             let msg = format!("{}:{}:{}", file.name, file.size, file.hash)
                 .as_bytes()
                 .to_vec();
             handler.send(&msg).await?;
+
+            debug!("({}): Sent metadata of file '{}'", addr, file.hash);
         }
 
         Ok(())
@@ -128,7 +151,10 @@ impl Server {
     async fn requests(
         &self,
         handler: &mut SocketHandler<'_>,
+        addr: &SocketAddr,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        debug!("({}): Waiting for file requests", addr);
+
         loop {
             let buf = handler.recv().await?;
             let hash = String::from_utf8(buf)?;
@@ -138,14 +164,20 @@ impl Server {
                 break;
             }
 
+            debug!("({}): Received request for file '{}'", addr, hash);
+
             let mut file = File::open(self.index[hash].clone()).await?;
             let mut remaining = file.metadata().await?.len();
             let mut sendbuf = vec![0u8; self.chunksize];
 
+            debug!("({}): Sending bytes of '{}'", addr, hash);
+
             while remaining != 0 {
                 let n = file.read(&mut sendbuf).await?;
-                handler.send(&sendbuf[..n].to_vec()).await?;
+                handler.send(&sendbuf[..n]).await?;
                 remaining -= n as u64;
+
+                debug!("({}): {} bytes remaining", addr, remaining);
             }
 
             let buf = handler.recv().await?;
@@ -155,6 +187,8 @@ impl Server {
             if confirmation != hash {
                 return Err("Unsuccessful file transfer, hashes don't match".into());
             }
+
+            debug!("({}): File '{}' successfully transferred", addr, hash);
         }
 
         Ok(())

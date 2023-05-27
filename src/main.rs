@@ -2,7 +2,7 @@ use std::{error::Error, net::SocketAddr, path::PathBuf};
 
 use clap::{command, ArgGroup, Parser, Subcommand};
 
-use contego::parsers::{addr_parser, dirpath_parser, filepath_parser};
+use contego::parser::{addr_parser, dirpath_parser, filepath_parser};
 
 #[derive(Debug, Parser)]
 #[command(about, version)]
@@ -54,19 +54,21 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let cli = Cli::parse();
+    // TODO: init logger with default level set to 'info'
 
-    match cli.command {
-        Commands::Host {
-            port,
-            ipv6,
-            infile,
-            files,
-            chunksize,
-            local,
-        } => {}
-        Commands::Connect { addr, out, key } => {}
-    };
+    let _cli = Cli::parse();
+
+    //match cli.command {
+    //    Commands::Host {
+    //        port,
+    //        ipv6,
+    //        infile,
+    //        files,
+    //        chunksize,
+    //        local,
+    //    } => {}
+    //    Commands::Connect { addr, out, key } => {}
+    //};
 
     Ok(())
 }
