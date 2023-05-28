@@ -79,16 +79,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             let paths = filepaths(source, files)?;
             let (metadata, index) = metadata(&paths).await?;
-            let addr = match (local, ipv6) {
+            let (display_addr, bind_addr) = match (local, ipv6) {
                 (true, _) => Ip::Local.fetch(port)?,
                 (false, true) => Ip::V6.fetch(port)?,
                 (false, false) => Ip::V4.fetch(port)?,
             };
 
-            let server = Server::new(addr, key, chunksize, metadata, index);
+            let server = Server::new(display_addr, key, chunksize, metadata, index);
 
             tokio::spawn(async move {
-                match server.start(rx).await {
+                match server.start(rx, &bind_addr).await {
                     Ok(_) => {}
                     Err(e) => error!("Error during server execution: {}", e),
                 };

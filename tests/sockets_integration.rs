@@ -24,14 +24,13 @@ async fn sockets_integration() {
         .is_test(true)
         .try_init()
         .unwrap();
-    //env_logger::builder().is_test(true).try_init().unwrap();
 
     debug!("Initializing and starting the test");
 
     let (testdata, paths) = testdata();
     let (metadata, index) = metadata(&paths).await.unwrap();
 
-    let addr = Ip::Local.fetch(8080).unwrap();
+    let (display_addr, bind_addr) = Ip::Local.fetch(8080).unwrap();
     let outdir = PathBuf::from("./tests/output/");
     let key = String::from("testkey");
     let c_key = key.clone();
@@ -40,14 +39,14 @@ async fn sockets_integration() {
 
     let server_handle = tokio::spawn(async move {
         debug!("Initializing the asynchronous server task");
-        let server = Server::new(addr, key, 8192, metadata, index);
+        let server = Server::new(display_addr, key, 8192, metadata, index);
         debug!("Starting to listen to incoming connections");
-        server.start(rx).await.unwrap();
+        server.start(rx, &bind_addr).await.unwrap();
     });
 
     let client_handle = tokio::spawn(async move {
         debug!("Initializing the asynchronous client task");
-        let client = Client::new(addr, c_key, outdir);
+        let client = Client::new(display_addr, c_key, outdir);
         debug!("Connecting to the server");
         client.connection().await.unwrap();
     });

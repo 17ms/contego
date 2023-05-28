@@ -39,15 +39,19 @@ impl Server {
     pub async fn start(
         self: Arc<Self>,
         mut kill: mpsc::Receiver<()>,
+        bind_addr: &SocketAddr,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         tokio::select! {
-            _ = self.listen() => Ok(()),
+            _ = self.listen(bind_addr) => Ok(()),
             _ = kill.recv() => Ok(()),
         }
     }
 
-    async fn listen(self: Arc<Self>) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let listener = TcpListener::bind(self.addr).await?;
+    async fn listen(
+        self: Arc<Self>,
+        bind_addr: &SocketAddr,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let listener = TcpListener::bind(bind_addr).await?;
 
         info!("Listening on {} - Access key: {}", self.addr, self.key);
 

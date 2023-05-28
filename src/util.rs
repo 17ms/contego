@@ -16,24 +16,26 @@ pub enum Ip {
 }
 
 impl Ip {
-    pub fn fetch(self, port: u16) -> Result<SocketAddr, Box<dyn Error>> {
+    pub fn fetch(self, port: u16) -> Result<(SocketAddr, SocketAddr), Box<dyn Error>> {
         let addr = match self {
             Ip::V4 => PUBLIC_IPV4,
             Ip::V6 => PUBLIC_IPV6,
             Ip::Local => {
                 let addr_str = format!("127.0.0.1:{}", port);
-                return Ok(addr_str.parse::<SocketAddr>()?);
+                let addr = addr_str.parse::<SocketAddr>()?;
+                return Ok((addr, addr));
             }
         };
 
         info!("Fetching IP information from {}", addr);
 
         let res = format!("{}:{}", ureq::get(addr).call()?.into_string()?.trim(), port);
-        let addr = res.parse::<SocketAddr>()?;
+        let display_addr = res.parse::<SocketAddr>()?;
+        let bind_addr = format!("0.0.0.0:{}", port).parse::<SocketAddr>()?;
 
         debug!("IP: {}", res);
 
-        Ok(addr)
+        Ok((display_addr, bind_addr))
     }
 }
 
