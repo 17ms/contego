@@ -1,6 +1,6 @@
-on: [push, pull_request]
+name: Checkmate CI
 
-name: cargo-checkmate continuous integration
+on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
