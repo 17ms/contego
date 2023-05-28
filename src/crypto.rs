@@ -102,7 +102,7 @@ impl Crypto {
     }
 }
 
-pub fn try_hash(path: &Path) -> Result<String, Box<dyn Error + Send + Sync>> {
+pub fn try_hash(path: &Path) -> Result<String, Box<dyn Error>> {
     debug!("Calculating SHA hash");
 
     let hash = sha256::try_digest(path)?;

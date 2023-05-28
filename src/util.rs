@@ -1,7 +1,15 @@
-use std::{collections::HashMap, error::Error, fs, net::SocketAddr, path::PathBuf};
+use std::{
+    collections::HashMap,
+    env,
+    error::Error,
+    fs,
+    io::{stdin, Read},
+    net::SocketAddr,
+    path::PathBuf,
+};
 
 use log::{debug, info};
-use tokio::{fs::File, io::BufWriter};
+use tokio::{fs::File, io::BufWriter, sync::mpsc::Sender};
 
 use crate::crypto;
 
@@ -16,9 +24,7 @@ pub enum Ip {
 }
 
 impl Ip {
-    pub fn fetch(self, port: u16) -> Result<SocketAddr, Box<dyn Error + Send + Sync>> {
-        debug!("Fetching IP information");
-
+    pub fn fetch(self, port: u16) -> Result<SocketAddr, Box<dyn Error>> {
         let addr = match self {
             Ip::V4 => PUBLIC_IPV4,
             Ip::V6 => PUBLIC_IPV6,
@@ -27,6 +33,8 @@ impl Ip {
                 return Ok(addr_str.parse::<SocketAddr>()?);
             }
         };
+
+        info!("Fetching IP information from {}", addr);
 
         let res = format!("{}:{}", ureq::get(addr).call()?.into_string()?.trim(), port);
         let addr = res.parse::<SocketAddr>()?;
@@ -51,38 +59,41 @@ impl FileInfo {
 }
 
 pub fn filepaths(
-    infile: Option<PathBuf>,
+    source: Option<PathBuf>,
     files: Option<Vec<PathBuf>>,
-) -> Result<Vec<PathBuf>, Box<dyn Error + Send + Sync>> {
+) -> Result<Vec<PathBuf>, Box<dyn Error>> {
     info!("Collecting filepaths");
 
-    let mut filepaths = Vec::new();
+    let mut paths = Vec::new();
 
-    if let Some(infile) = infile {
-        let paths = fs::read_to_string(infile)?;
-        for path in paths.lines() {
-            filepaths.push(PathBuf::from(path));
-        }
+    if let Some(source) = source {
+        let home = env::var("HOME")?;
+        let content = fs::read_to_string(source)?;
+        paths = content
+            .lines()
+            .into_iter()
+            .map(|p| PathBuf::from(p.replace('~', &home)))
+            .collect();
     } else if let Some(files) = files {
-        for file in files {
-            filepaths.push(file);
-        }
+        paths = files;
     }
 
-    debug!("Filepaths collection finished (total: {})", filepaths.len());
+    debug!("Filepaths collection finished (total: {})", paths.len());
 
-    Ok(filepaths)
+    Ok(paths)
 }
 
 pub async fn metadata(
     files: &Vec<PathBuf>,
-) -> Result<(Vec<FileInfo>, HashMap<String, PathBuf>), Box<dyn Error + Send + Sync>> {
+) -> Result<(Vec<FileInfo>, HashMap<String, PathBuf>), Box<dyn Error>> {
     info!("Collecting metadata");
 
     let mut metadata = Vec::new();
     let mut index = HashMap::new();
 
     for path in files {
+        debug!("Collecting '{}' metadata", path.to_str().unwrap());
+
         let split = path.to_str().unwrap().split('/').collect::<Vec<&str>>();
         let name = split[split.len() - 1].to_string();
         let handle = File::open(path).await?;
@@ -90,8 +101,6 @@ pub async fn metadata(
         let hash = crypto::try_hash(path)?;
 
         if size > 0 {
-            debug!("Collecting '{}' metadata", name);
-
             let info = FileInfo::new(name, size, hash.clone());
             metadata.push(info);
             index.insert(hash, path.clone());
@@ -116,4 +125,22 @@ pub async fn new_file(
     let handle = File::create(&path).await?;
 
     Ok((BufWriter::new(handle), path))
+}
+
+pub async fn handle_exit(tx: Sender<()>) -> Result<(), Box<dyn Error>> {
+    let mut stdin = stdin().lock().bytes();
+
+    loop {
+        let k = match stdin.next() {
+            None => continue,
+            Some(k) => k?,
+        };
+
+        if k == b'q' {
+            tx.send(()).await?;
+            break;
+        }
+    }
+
+    Ok(())
 }

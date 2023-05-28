@@ -130,7 +130,7 @@ impl Client {
                 debug!("File '{}': {} bytes remaining", file.hash, remaining);
             }
 
-            let check_hash = crypto::try_hash(&path)?;
+            let check_hash = crypto::try_hash(&path).unwrap();
             let msg = check_hash.as_bytes().to_vec();
             handler.send(&msg).await?;
 

@@ -1,8 +1,11 @@
 use std::{
+    env,
     io::{Error, ErrorKind::NotFound},
     net::{AddrParseError, SocketAddr},
     path::PathBuf,
 };
+
+use log::debug;
 
 pub fn addr_parser(addr: &str) -> Result<SocketAddr, AddrParseError> {
     let addr = addr
@@ -13,7 +16,13 @@ pub fn addr_parser(addr: &str) -> Result<SocketAddr, AddrParseError> {
 }
 
 pub fn filepath_parser(path: &str) -> Result<PathBuf, Error> {
-    let path = path.parse::<PathBuf>().expect("Failed to parse path");
+    debug!("Validating filepath '{}'", path);
+
+    let home = env::var("HOME").unwrap();
+    let path = path
+        .replace('~', &home)
+        .parse::<PathBuf>()
+        .expect("Failed to parse path");
 
     if path.exists() && path.is_file() {
         Ok(path)
@@ -23,6 +32,8 @@ pub fn filepath_parser(path: &str) -> Result<PathBuf, Error> {
 }
 
 pub fn dirpath_parser(path: &str) -> Result<PathBuf, Error> {
+    debug!("Validating dirpath '{}'", path);
+
     let path = path.parse::<PathBuf>().expect("Failed to parse path");
 
     if path.exists() && path.is_dir() {

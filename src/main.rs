@@ -6,9 +6,10 @@ use contego::{
     client::Client,
     parser::{addr_parser, dirpath_parser, filepath_parser},
     server::Server,
-    util::{filepaths, metadata, Ip},
+    util::{filepaths, handle_exit, metadata, Ip},
 };
 use env_logger::Env;
+use log::error;
 use tokio::sync::mpsc;
 
 #[derive(Debug, Parser)]
@@ -20,16 +21,16 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    #[clap(group(ArgGroup::new("input").required(true).args(&["infile", "files"])))]
+    #[clap(group(ArgGroup::new("input").required(true).args(&["source", "files"])))]
     Host {
         /// Access key
         #[clap(short = 'k', long)]
         key: String,
         /// Path to a source file (alternative to --files)
-        #[clap(short = 'i', long, value_parser = filepath_parser, conflicts_with = "files", group = "input")]
+        #[clap(short = 's', long, value_parser = filepath_parser, conflicts_with = "files", group = "input")]
         source: Option<PathBuf>,
         /// Paths to shareable files (alternative to --source)
-        #[clap(short = 'f', long, num_args = 1.., value_parser = filepath_parser, conflicts_with = "infile", group = "input")]
+        #[clap(short = 'f', long, num_args = 1.., value_parser = filepath_parser, conflicts_with = "source", group = "input")]
         files: Option<Vec<PathBuf>>,
         /// Host port
         #[clap(short = 'p', long, default_value_t = 8080)]
@@ -58,9 +59,8 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
-
     let cli = Cli::parse();
 
     match cli.command {
@@ -73,23 +73,33 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
             local,
             key,
         } => {
-            let files = filepaths(source, files)?;
-            let (metadata, index) = metadata(&files).await?;
+            let (tx, rx) = mpsc::channel::<()>(1);
+
+            let paths = filepaths(source, files)?;
+            let (metadata, index) = metadata(&paths).await?;
             let addr = match (local, ipv6) {
                 (true, _) => Ip::Local.fetch(port)?,
                 (false, true) => Ip::V6.fetch(port)?,
                 (false, false) => Ip::V4.fetch(port)?,
             };
 
-            // TODO: handle shutdown signal
-            let (_tx, rx) = mpsc::channel::<()>(1);
-
             let server = Server::new(addr, key, chunksize, metadata, index);
-            server.start(rx).await?;
+
+            tokio::spawn(async move {
+                match server.start(rx).await {
+                    Ok(_) => {}
+                    Err(e) => error!("Error during server execution: {}", e),
+                };
+            });
+
+            handle_exit(tx).await?;
         }
         Commands::Connect { addr, out, key } => {
             let client = Client::new(addr, key, out);
-            client.connection().await?;
+            match client.connection().await {
+                Ok(_) => {}
+                Err(e) => error!("Error during client execution: {}", e),
+            };
         }
     };
 
