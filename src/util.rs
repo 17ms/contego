@@ -1,15 +1,7 @@
-use std::{
-    collections::HashMap,
-    env,
-    error::Error,
-    fs,
-    io::{stdin, Read},
-    net::SocketAddr,
-    path::PathBuf,
-};
+use std::{collections::HashMap, env, error::Error, fs, net::SocketAddr, path::PathBuf};
 
 use log::{debug, info};
-use tokio::{fs::File, io::BufWriter, sync::mpsc::Sender};
+use tokio::{fs::File, io::BufWriter};
 
 use crate::crypto;
 
@@ -127,20 +119,12 @@ pub async fn new_file(
     Ok((BufWriter::new(handle), path))
 }
 
-pub async fn handle_exit(tx: Sender<()>) -> Result<(), Box<dyn Error>> {
-    let mut stdin = stdin().lock().bytes();
-
-    loop {
-        let k = match stdin.next() {
-            None => continue,
-            Some(k) => k?,
-        };
-
-        if k == b'q' {
-            tx.send(()).await?;
-            break;
-        }
-    }
-
-    Ok(())
+pub fn ascii() {
+    let ascii = "                    __                 
+  _________  ____  / /____  ____ _____ 
+ / ___/ __ \\/ __ \\/ __/ _ \\/ __ `/ __ \\
+/ /__/ /_/ / / / / /_/  __/ /_/ / /_/ /
+\\___/\\____/_/ /_/\\__/\\___/\\__, /\\____/ 
+                         /____/        ";
+    println!("{}\n", ascii);
 }

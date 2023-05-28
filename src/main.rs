@@ -6,11 +6,11 @@ use contego::{
     client::Client,
     parser::{addr_parser, dirpath_parser, filepath_parser},
     server::Server,
-    util::{filepaths, handle_exit, metadata, Ip},
+    util::{ascii, filepaths, metadata, Ip},
 };
 use env_logger::Env;
-use log::error;
-use tokio::sync::mpsc;
+use log::{error, info};
+use tokio::{signal, sync::mpsc};
 
 #[derive(Debug, Parser)]
 #[command(about, version)]
@@ -60,6 +60,8 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    ascii();
+
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
 
@@ -92,7 +94,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 };
             });
 
-            handle_exit(tx).await?;
+            match signal::ctrl_c().await {
+                Ok(_) => {
+                    tx.send(()).await?;
+                    info!("Captured Ctrl+C, shutting down");
+                }
+                Err(_) => error!("Failed to listen for a Ctrl+C event"),
+            };
         }
         Commands::Connect { addr, out, key } => {
             let client = Client::new(addr, key, out);

@@ -1,6 +1,6 @@
 [package]
 name = "contego"
-description = "CLI tool for file transfer"
+description = "CLI tool for quick file transfers"
 version = "0.3.0"
 edition = "2021"
 
