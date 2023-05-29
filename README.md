@@ -21,9 +21,33 @@ Most cellular ISP's tend to block port forwarding on CGNAT level, which makes it
 
 ## Usage
 
-Work in progress. Will be completed when the current release is finished.
+Check [releases](https://github.com/17ms/contego/releases) for an up-to-date executables or build from source with `cargo build --release`.
 
-```shell
-cargo build --release
-./target/release/contego
+### Server
+
+```
+Usage: contego host [OPTIONS] --key <KEY> <--source <SOURCE>|--files <FILES>...>
+
+Options:
+  -k, --key <KEY>              Access key
+  -s, --source <SOURCE>        Path to a source file (alternative to --files)
+  -f, --files <FILES>...       Paths to shareable files (alternative to --source)
+  -p, --port <PORT>            Host port [default: 8080]
+  -6, --ipv6                   IPv6 instead of IPv4
+  -c, --chunksize <CHUNKSIZE>  Transmit chunksize in bytes [default: 8192]
+  -l, --local                  Host locally
+  -h, --help                   Print help
+
+```
+
+### Client
+
+```
+Usage: contego connect --addr <ADDR> --out <OUT> --key <KEY>
+
+Options:
+  -a, --addr <ADDR>  IP address of the instance
+  -o, --out <OUT>    Path to an output folder
+  -k, --key <KEY>    Access key
+  -h, --help         Print help
 ```
