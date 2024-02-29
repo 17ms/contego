@@ -15,10 +15,6 @@
 
 The initial key exchange is performed with elliptic-curve Diffie-Hellman. General data exchange is encrypted with AES-GCM. During regular communication payloads are Base64 encoded before being encrypted to prevent delimiter conflicts. SHA-256 hashes of files are compared to ensure data integrity.
 
-## Cellular networks
-
-Most cellular ISP's tend to block port forwarding on CGNAT level, which makes it impossible to create inbound connections to such network without a VPN. Luckily many consumer VPNs and self-hosted solutions make port forwarding a trivial task. This is the main reason why the client must fetch information about the public IP from an external service (https://ipinfo.io/ip for IPv4 and https://ipv6.icanhazip.com for IPv6). 
-
 ## Usage
 
 Check [releases](https://github.com/17ms/contego/releases) for an up-to-date executables or build from source with `cargo build --release`.
